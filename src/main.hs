@@ -5,10 +5,16 @@ data Point t = Point { p_x :: t, p_y :: t } deriving (Show)
 data Segment t = Segment (Point t) (Point t) deriving (Show)
 data Line t = Line { slope :: t,  intercept :: t } deriving (Show)
 data Vector t = Vector { v_x :: t, v_y :: t } deriving (Show)
+data Range t = Range { r_lower :: t, r_upper :: t }
 type Position = Point
 
+in_range value range = 
+   (value < (r_upper range)) && (value > (r_lower range))
 
-in_domain x_value (Segment from to) = ((x_value < (p_x from)) && (x_value > (p_x to))) || ((x_value > (p_x from)) && (x_value < (p_x to)))
+make_range :: (Ord t) => t -> t -> Range t
+make_range first second = if (first < second) then (Range first second) else (Range second first)
+
+in_domain x_value (Segment from to) = in_range x_value $ make_range (p_x from) (p_x to)
 
 in_domains :: (Ord t) => t -> [Segment t] -> Bool
 in_domains point segments = all (in_domain point) segments
