@@ -50,16 +50,16 @@ segment_intersection first_segment second_segment =
 
 main = let first = Point 2 0
            second = Point 3 2.5
-           segment = Segment first second
-           extendedSegment = make_line segment
+           diagonal_segment = Segment first second
+           extendedSegment = make_line diagonal_segment
            flat_segment = Segment (Point 5 5) (Point 10 5)
            flatLine = make_line $ flat_segment
  in do
-   putStrLn $ show segment
-   putStrLn $ show $ segment_slope segment
-   putStrLn $ show $ y_intercept (segment_slope segment) first
-   putStrLn $ show $ make_line segment
+   putStrLn $ show diagonal_segment
+   putStrLn $ show $ segment_slope diagonal_segment
+   putStrLn $ show $ y_intercept (segment_slope diagonal_segment) first
+   putStrLn $ show $ make_line diagonal_segment
    putStrLn $ show flatLine
    putStrLn $ show $ intersection extendedSegment flatLine
-   putStrLn $ show $ segment_intersection segment flat_segment
+   putStrLn $ show $ segment_intersection diagonal_segment flat_segment
    putStrLn $ show $ segment_intersection (Segment (Point 5 0) (Point 10 10))  flat_segment
