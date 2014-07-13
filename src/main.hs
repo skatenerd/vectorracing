@@ -2,11 +2,17 @@ module Main where
 import Data.Bool
 
 data Point t = Point { p_x :: t, p_y :: t } deriving (Show)
+data Vector t = Vector { v_x :: t, v_y :: t } deriving (Show)
 data Segment t = Segment (Point t) (Point t) deriving (Show)
 data Line t = Line { slope :: t,  intercept :: t } deriving (Show)
-data Vector t = Vector { v_x :: t, v_y :: t } deriving (Show)
 data Range t = Range { r_lower :: t, r_upper :: t }
-type Position = Point
+data CarState t = CarState { position :: Point t, velocity :: Vector t}
+data GameState t = GameState [CarState t]
+data CarUpdate t = CarUpdate { carState :: CarState t, delta :: Vector t} 
+data GameUpdate t = GameUpdate [CarUpdate t]
+
+updateGame :: GameUpdate t -> GameState t
+updateGame original = 
 
 in_range value range = 
    (value < (r_upper range)) && (value > (r_lower range))
