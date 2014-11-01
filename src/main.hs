@@ -16,6 +16,10 @@ type Shape = [Point]
 type Course = [Shape]
 --data GameState = GameState [CarState]
 
+
+get_intercept (FunctionLine s i) = i
+get_intercept (VerticalLine i) = i
+
 add :: Vector -> Vector -> Vector
 add v1 v2 = Vector ((v_x v1) + (v_x v2)) ((v_y v1) + (v_y v2))
 
@@ -87,9 +91,11 @@ value_at (VerticalLine intercept) _ = intercept
 value_at (FunctionLine slope intercept) x_value = (slope * x_value) + intercept
 
 intersection :: Line -> Line -> Maybe Point
+--intersection first second = case (first, second) of ()
+
 intersection (VerticalLine _) (VerticalLine _) = Nothing
-intersection (FunctionLine slope intercept) (VerticalLine i) = Just $ Point i (value_at (FunctionLine slope intercept) i)
-intersection (VerticalLine i) (FunctionLine slope intercept) = Just $ Point i (value_at (FunctionLine slope intercept) i)
+intersection functionLine@FunctionLine{} (VerticalLine i) = Just $ Point i (value_at functionLine i)
+intersection (VerticalLine i) functionLine@FunctionLine{} = Just $ Point i (value_at functionLine i)
 intersection (FunctionLine firstSlope firstIntercept) (FunctionLine secondSlope secondIntercept) =
   if (firstSlope == secondSlope)
   then Nothing
