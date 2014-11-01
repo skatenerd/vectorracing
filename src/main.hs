@@ -59,6 +59,8 @@ in_domain x_value (Segment from to) = in_range x_value $ make_range (p_x from) (
 in_domains :: Float -> [Segment] -> Bool
 in_domains point segments = all (in_domain point) segments
 
+force_into_domains point segments = if in_domains (p_x point) segments then Just point else Nothing
+
 segment_slope :: Segment -> Float
 segment_slope (Segment from to) =
   let rise = (p_y to) - (p_y from)
@@ -101,12 +103,9 @@ segment_intersection :: Segment -> Segment -> Maybe (Point)
 segment_intersection first_segment second_segment =
   let first_line = make_line first_segment
       second_line = make_line second_segment
-      the_intersection = intersection first_line second_line
-  in case the_intersection of Nothing -> Nothing
-                              Just (Point p_x p_y) -> let legal = in_domains p_x [first_segment, second_segment]
-                                                      in if legal
-                                                      then the_intersection
-                                                      else Nothing
+  in do
+    the_intersection <- intersection first_line second_line
+    force_into_domains the_intersection [first_segment, second_segment]
 
 segment_intersects :: Segment -> Segment -> Bool
 segment_intersects first second = let intersection = (segment_intersection first second)
