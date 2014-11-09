@@ -1,154 +1,155 @@
 module Main where
 import Data.Bool
-
-data Point = Point { p_x :: Float, p_y :: Float } deriving (Show)
-data Vector = Vector { v_x :: Float, v_y :: Float } deriving (Show)
+data Point = Point { pX :: Float, pY :: Float } deriving (Show)
+data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 data Segment = Segment Point Point deriving (Show)
 
--- FunctionLine = slope, intercept
--- VerticalLine = intercept
 data Line = FunctionLine Float Float | VerticalLine Float deriving (Show)
 
-data Range = Range { r_lower :: Float, r_upper :: Float }
+data Range = Range { rLower :: Float, rUpper :: Float }
 data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
 data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down
 type Shape = [Point]
 type Course = [Shape]
---data GameState = GameState [CarState]
 
+lineThrough slope targetPoint = let yIntercept = (pY targetPoint) - ((pX targetPoint) * slope)
+                                in FunctionLine slope yIntercept
 
-get_intercept (FunctionLine s i) = i
-get_intercept (VerticalLine i) = i
+perpindicular (VerticalLine _) targetPoint = FunctionLine 0 $ pY targetPoint
+perpindicular (FunctionLine slope intercept) targetPoint = if slope == 0
+                                                           then VerticalLine $ pX targetPoint
+                                                           else let perpindicularSlope = (-1) * (1 / slope)
+                                                                in lineThrough perpindicularSlope targetPoint
+square x = x * x
+
+distance p1 p2 = sqrt $ (square (pX p1 - pX p2)) + (square (pY p1 - pY p2))
+
+distanceToLine point line = let p = perpindicular line point
+                                Just closestPointOnLine = intersection p line
+                            in distance point closestPointOnLine
 
 add :: Vector -> Vector -> Vector
-add v1 v2 = Vector ((v_x v1) + (v_x v2)) ((v_y v1) + (v_y v2))
+add v1 v2 = Vector (vX v1 + vX v2) (vY v1 + vY v2)
 
-translate p v = Point (v_x v + p_x p) (v_y v + p_y p)
+translate p v = Point (vX v + pX p) (vY v + pY p)
 
 coast car = let new_position = translate (position car) (velocity car)
             in CarState new_position (velocity car)
 
-vector_for_direction :: Direction -> Vector
-vector_for_direction Up = Vector 0 1
-vector_for_direction UpRight = Vector 1 1
-vector_for_direction UpLeft = Vector (-1) (1)
-vector_for_direction LLeft = Vector (-1) 0
-vector_for_direction RRight = Vector 1 0
-vector_for_direction DownRight = Vector (1) (-1)
-vector_for_direction DownLeft = Vector (-1) (-1)
-vector_for_direction Down = Vector (0) (-1)
+vectorForDirection :: Direction -> Vector
+vectorForDirection Up = Vector 0 1
+vectorForDirection UpRight = Vector 1 1
+vectorForDirection UpLeft = Vector (-1) 1
+vectorForDirection LLeft = Vector (-1) 0
+vectorForDirection RRight = Vector 1 0
+vectorForDirection DownRight = Vector 1 (-1)
+vectorForDirection DownLeft = Vector (-1) (-1)
+vectorForDirection Down = Vector 0 (-1)
 
-hits_shape segment shape = let walls = zipWith make_segment shape ((tail shape) ++ [shape !! 0])
-                           in any (segment_intersects segment) walls
+hitsShape segment shape = let walls = zipWith makeSegment shape (tail shape ++ [head shape])
+                           in any (segmentIntersects segment) walls
 
-hits_course segment course = any (hits_shape segment) course
+hitsCourse segment = any (hitsShape segment)
 
-accelerate car direction = CarState (position car) (add (vector_for_direction direction) (velocity car))
+accelerate car direction = CarState (position car) (add (vectorForDirection direction) (velocity car))
 
-take_turn state direction course = let with_new_velocity = accelerate state direction
-                                       after_coast = coast with_new_velocity
-                                       segment_created = make_segment (position state) (position after_coast)
-                                   in if hits_course segment_created course then
+takeTurn state direction course = let with_newVelocity = accelerate state direction
+                                      afterCoast = coast with_newVelocity
+                                      segmentCreated = makeSegment (position state) (position afterCoast)
+                                   in if hitsCourse segmentCreated course then
                                          Nothing else
-                                         Just after_coast
+                                         Just afterCoast
 
-in_range value range =
-   (value < (r_upper range)) && (value > (r_lower range))
+inRange value range =
+   (value < rUpper range) && (value > rLower range)
 
-make_range :: Float -> Float -> Range
-make_range first second = if (first < second) then (Range first second) else (Range second first)
+makeRange :: Float -> Float -> Range
+makeRange first second = if first < second then Range first second else Range second first
 
-in_domain x_value (Segment from to) = in_range x_value $ make_range (p_x from) (p_x to)
+inDomain xValue (Segment from to) = inRange xValue $ makeRange (pX from) (pX to)
 
-in_domains :: Float -> [Segment] -> Bool
-in_domains point segments = all (in_domain point) segments
+inDomains :: Float -> [Segment] -> Bool
+inDomains point = all (inDomain point)
 
-force_into_domains point segments = if in_domains (p_x point) segments then Just point else Nothing
+forceIntoDomains point segments = if inDomains (pX point) segments then Just point else Nothing
 
-segment_slope :: Segment -> Float
-segment_slope (Segment from to) =
-  let rise = (p_y to) - (p_y from)
-      run = (p_x to) - (p_x from)
+segmentSlope :: Segment -> Float
+segmentSlope (Segment from to) =
+  let rise = pY to - pY from
+      run = pX to - pX from
   in (rise / run)
 
-y_intercept slope (Point x y) = y - (slope * x)
+yIntercept slope (Point x y) = y - (slope * x)
 
-make_segment from to = Segment from to
+makeSegment = Segment
 
-is_vertical (Segment from to) = (p_x from) == (p_x to)
+isVertical (Segment from to) = pX from == pX to
 
-make_line :: Segment -> Line
-make_line segment = if is_vertical segment
+segmentToLine :: Segment -> Line
+segmentToLine segment = if isVertical segment
                     then let Segment (Point x _) _ = segment
                          in VerticalLine x
-                    else let theslope = segment_slope segment
-                             (Segment point _) = segment
-                             intercept = y_intercept theslope point
-                         in (FunctionLine theslope intercept)
+                    else let theslope = segmentSlope segment
+                             Segment point _ = segment
+                             intercept = yIntercept theslope point
+                         in FunctionLine theslope intercept
 
--- Warning! LOL! Vertical lines aren't functions, so it's hard to talk about them in a functional language!!
-value_at (VerticalLine intercept) _ = intercept
-value_at (FunctionLine slope intercept) x_value = (slope * x_value) + intercept
+-- Notice that valueAt is not defined for a verticalLine
+-- LOL! Vertical lines aren't functions, so it's hard to talk about them in a functional language!!
+valueAt (FunctionLine slope intercept) xValue = (slope * xValue) + intercept
 
 intersection :: Line -> Line -> Maybe Point
---intersection first second = case (first, second) of ()
 
 intersection (VerticalLine _) (VerticalLine _) = Nothing
-intersection functionLine@FunctionLine{} (VerticalLine i) = Just $ Point i (value_at functionLine i)
-intersection (VerticalLine i) functionLine@FunctionLine{} = Just $ Point i (value_at functionLine i)
+intersection functionLine@FunctionLine{} (VerticalLine i) = Just $ Point i (valueAt functionLine i)
+intersection (VerticalLine i) functionLine@FunctionLine{} = Just $ Point i (valueAt functionLine i)
 intersection (FunctionLine firstSlope firstIntercept) (FunctionLine secondSlope secondIntercept) =
-  if (firstSlope == secondSlope)
+  if firstSlope == secondSlope
   then Nothing
   else let lhsCoefficient = firstSlope - secondSlope
            rhs = secondIntercept - firstIntercept
-           x_intersection = rhs / lhsCoefficient
-           y_intersection = value_at (FunctionLine firstSlope firstIntercept) x_intersection
-  in Just $ Point x_intersection y_intersection
+           xIntersection = rhs / lhsCoefficient
+           yIntersection = valueAt (FunctionLine firstSlope firstIntercept) xIntersection
+  in Just $ Point xIntersection yIntersection
 
-segment_intersection :: Segment -> Segment -> Maybe (Point)
-segment_intersection first_segment second_segment =
-  let first_line = make_line first_segment
-      second_line = make_line second_segment
+segmentIntersection :: Segment -> Segment -> Maybe Point
+segmentIntersection firstSegment secondSegment =
+  let firstLine = segmentToLine firstSegment
+      secondLine = segmentToLine secondSegment
   in do
-    the_intersection <- intersection first_line second_line
-    force_into_domains the_intersection [first_segment, second_segment]
+    theIntersection <- intersection firstLine secondLine
+    forceIntoDomains theIntersection [firstSegment, secondSegment]
 
-segment_intersects :: Segment -> Segment -> Bool
-segment_intersects first second = let intersection = (segment_intersection first second)
+segmentIntersects :: Segment -> Segment -> Bool
+segmentIntersects first second = let intersection = segmentIntersection first second
                                   in case intersection of Nothing -> False
                                                           (Just _) -> True
 
 main = let first = Point 2 0
            second = Point 3 2.5
-           diagonal_segment = Segment first second
-           extendedSegment = make_line diagonal_segment
-           flat_segment = Segment (Point 5 5) (Point 10 5)
-           flatLine = make_line $ flat_segment
-           vertical_line = make_line $ Segment (Point 2 0) (Point 2 10)
-           square_barrier = [(Point (-8) (-8)), (Point (-8) 8), (Point 8 8), (Point 8 (-8))]
-           square_course = [square_barrier]
-           initial_car_state = CarState (Point 0 0) (Vector 0 0)
-           Just after_right = take_turn initial_car_state RRight square_course
-           Just after_right_up = take_turn after_right Up square_course
-           Just after_right_up_up = take_turn after_right_up Up square_course
-           Just after_right_up_up_up = take_turn after_right_up_up Up square_course
-           off_the_end = take_turn after_right_up_up_up Up square_course
-           walls = zipWith make_segment square_barrier ((tail square_barrier) ++ [square_barrier !! 0])
+           diagonalSegment = Segment first second
+           extendedSegment = segmentToLine diagonalSegment
+           flatSegment = Segment (Point 5 5) (Point 10 5)
+           flatLine = segmentToLine flatSegment
+           verticalLine = segmentToLine $ Segment (Point 2 0) (Point 2 10)
+           square_barrier = [Point (-8) (-8), Point (-8) 8, Point 8 8, Point 8 (-8)]
+           squareCourse = [square_barrier]
+           initialCarState = CarState (Point 0 0) (Vector 0 0)
+           Just after_right = takeTurn initialCarState RRight squareCourse
+           Just after_right_up = takeTurn after_right Up squareCourse
+           Just after_right_up_up = takeTurn after_right_up Up squareCourse
+           Just after_right_up_up_up = takeTurn after_right_up_up Up squareCourse
+           offThe_end = takeTurn after_right_up_up_up Up squareCourse
  in do
-   putStrLn $ show diagonal_segment
-   putStrLn $ show $ segment_slope diagonal_segment
-   putStrLn $ show $ y_intercept (segment_slope diagonal_segment) first
-   putStrLn $ show $ make_line diagonal_segment
-   putStrLn $ show flatLine
-   putStrLn $ show vertical_line
-   --putStrLn $ show $ intersection extendedSegment flatLine
-   --putStrLn $ show $ segment_intersection diagonal_segment flat_segment
-   --putStrLn $ show $ segment_intersection (Segment (Point 5 0) (Point 10 10))  flat_segment
-   putStrLn $ show $ after_right_up_up_up
-   putStrLn $ show $ off_the_end
-   --putStrLn $ show $ zipWith make_segment square_barrier ((tail square_barrier) ++ [square_barrier !! 0])
-   --putStrLn $ show $ hits_shape (Segment (Point 0 0) (Point 1 101)) square_barrier
-   putStrLn $ show $ segment_intersection (Segment (Point 0 0) (Point 0 101)) (Segment (Point (-5) 10) (Point 5 10))
-   putStrLn $ show $ segment_intersection (Segment (Point (-5) 10) (Point 5 10)) (Segment (Point 0 0) (Point 0 101))
-
-   --putStrLn $ show $ (walls !! 1)
+  print diagonalSegment
+  print $ segmentSlope diagonalSegment
+  print $ yIntercept (segmentSlope diagonalSegment) first
+  print $ segmentToLine diagonalSegment
+  print flatLine
+  print $ distance (Point 0 0) (Point 1 1)
+  print $ lineThrough 2 $ Point 0 5
+  print $ perpindicular (lineThrough 2 $ Point 0 5) (Point 0 5)
+  print $ distanceToLine (Point 0 0) (FunctionLine (-1) 2)
+  print verticalLine
+  print after_right_up_up_up
+  print offThe_end
