@@ -4,6 +4,7 @@ import Data.Maybe
 import Debug.Trace
 import Data.List
 
+import Geometry
 
 import Data.Monoid
 import Control.Monad
@@ -16,13 +17,9 @@ import Control.Monad.Trans.Maybe
 import Control.Concurrent
 
 
-data Point = Point { pX :: Float, pY :: Float } deriving (Show, Eq)
 data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
-data Segment = Segment Point Point deriving (Show)
 
-data Line = FunctionLine Float Float | VerticalLine Float deriving (Show)
 
-data Range = Range { rLower :: Float, rUpper :: Float }
 data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
 data GameState = GameState {getCarState :: CarState, lastCarState :: CarState} deriving (Show)
 data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show)
@@ -31,27 +28,6 @@ type Course = [Shape]
 
 data GameConfig = GameConfig { getCourse :: Course }
 
-lineThrough slope targetPoint = let yIntercept = pY targetPoint - (pX targetPoint * slope)
-                                in FunctionLine slope yIntercept
-
-perpindicular (VerticalLine _) targetPoint = FunctionLine 0 $ pY targetPoint
-perpindicular (FunctionLine slope intercept) targetPoint = if slope == 0
-                                                           then VerticalLine $ pX targetPoint
-                                                           else let perpindicularSlope = (-1) * (1 / slope)
-                                                                in lineThrough perpindicularSlope targetPoint
-square x = x * x
-
-distance p1 p2 = sqrt $ square (pX p1 - pX p2) + square (pY p1 - pY p2)
-
-closestPointOnLine point line = let perpindicularLine = perpindicular line point
-                                    Just closestPointOnLine = intersection perpindicularLine line
-                                in closestPointOnLine
-
-distanceToSegment point segment = let p = closestPointOnLine point $ segmentToLine segment
-                                      Segment alpha beta = segment
-                                  in if pointInSegment p segment
-                                  then distance p point
-                                  else minimum $ map (distance point) [alpha, beta]
 
 add :: Vector -> Vector -> Vector
 add v1 v2 = Vector (vX v1 + vX v2) (vY v1 + vY v2)
@@ -96,71 +72,6 @@ noCourseTakeTurn state direction = let with_newVelocity = accelerate state direc
                                    in afterCoast
 
 
-inRange value range =
-   (value <= rUpper range) && (value >= rLower range)
-
-makeRange :: Float -> Float -> Range
-makeRange first second = if first < second then Range first second else Range second first
-
-pointInSegment point (Segment from to) = (inRange (pX point) $ makeRange (pX from) (pX to)) &&
-                                         (inRange (pY point) $ makeRange (pY from) (pY to))
-
-inSegments :: Point -> [Segment] -> Bool
-inSegments point = all (pointInSegment point)
-
-forceIntoDomains point segments = if inSegments point segments then Just point else Nothing
-
-segmentSlope :: Segment -> Float
-segmentSlope (Segment from to) =
-  let rise = pY to - pY from
-      run = pX to - pX from
-  in (rise / run)
-
-yIntercept slope (Point x y) = y - (slope * x)
-
-makeSegment = Segment
-
-isVertical (Segment from to) = pX from == pX to
-
-segmentToLine :: Segment -> Line
-segmentToLine segment = if isVertical segment
-                    then let Segment (Point x _) _ = segment
-                         in VerticalLine x
-                    else let theslope = segmentSlope segment
-                             Segment point _ = segment
-                             intercept = yIntercept theslope point
-                         in FunctionLine theslope intercept
-
--- Notice that valueAt is not defined for a verticalLine
--- LOL! Vertical lines aren't functions, so it's hard to talk about them in a functional language!!
-valueAt (FunctionLine slope intercept) xValue = (slope * xValue) + intercept
-
-intersection :: Line -> Line -> Maybe Point
-
-intersection (VerticalLine _) (VerticalLine _) = Nothing
-intersection functionLine@FunctionLine{} (VerticalLine i) = Just $ Point i (valueAt functionLine i)
-intersection (VerticalLine i) functionLine@FunctionLine{} = Just $ Point i (valueAt functionLine i)
-intersection (FunctionLine firstSlope firstIntercept) (FunctionLine secondSlope secondIntercept) =
-  if firstSlope == secondSlope
-  then Nothing
-  else let lhsCoefficient = firstSlope - secondSlope
-           rhs = secondIntercept - firstIntercept
-           xIntersection = rhs / lhsCoefficient
-           yIntersection = valueAt (FunctionLine firstSlope firstIntercept) xIntersection
-  in Just $ Point xIntersection yIntersection
-
-segmentIntersection :: Segment -> Segment -> Maybe Point
-segmentIntersection firstSegment secondSegment =
-  let firstLine = segmentToLine firstSegment
-      secondLine = segmentToLine secondSegment
-  in do
-    -- monads!
-    theIntersection <- intersection firstLine secondLine
-    forceIntoDomains theIntersection [firstSegment, secondSegment]
-
-segmentIntersects :: Segment -> Segment -> Bool
-segmentIntersects first second = let intersection = segmentIntersection first second
-                                 in isJust intersection
 
 updateNth :: [a] -> Int -> (a -> a) -> [a]
 updateNth (first:rest) 0 howToChange = (howToChange first) : rest
@@ -201,7 +112,7 @@ inputToDelta _ = Up
 
 promptInput = let valid_inputs = ["up", "upright", "upleft", "left", "right", "downright", "downleft", "down"]
               in do
-                putStrLn "Please enter a direction"
+                putStrLn "\n\nPlease enter a direction"
                 userInput <- getLine
                 putStrLn userInput
                 if elem userInput valid_inputs
@@ -221,8 +132,6 @@ incstate = do
   put $ GameState (noCourseTakeTurn (getCarState now) delta) (getCarState now)
   newnow <- get
   liftIO $ putStrLn $ render (getCarState newnow) $ getCourse theConfig
-
-pointnorm point = distance point $ Point 0 0
 
 crash = do
   gamestate <- get
