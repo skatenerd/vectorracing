@@ -1,51 +1,57 @@
-module Geometry (Point(Point), pX, pY, distanceToSegment, segmentIntersects, makeSegment) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate) where
 
 import Data.Maybe
+import Data.Complex
 
-data Line = FunctionLine Float Float | VerticalLine Float deriving (Show)
+data Line = Line Point Point deriving (Show)
 data Point = Point { pX :: Float, pY :: Float } deriving (Show, Eq)
 data Segment = Segment Point Point deriving (Show)
 data Range = Range { rLower :: Float, rUpper :: Float }
+data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 
-lineThrough slope targetPoint = let yIntercept = pY targetPoint - (pX targetPoint * slope)
-                                in FunctionLine slope yIntercept
-
--- Notice that valueAt is not defined for a verticalLine
--- LOL! Vertical lines aren't functions, so it's hard to talk about them in a functional language!!
-valueAt (FunctionLine slope intercept) xValue = (slope * xValue) + intercept
-
-
-yIntercept slope (Point x y) = y - (slope * x)
-
+translate p v = Point (vX v + pX p) (vY v + pY p)
 
 square x = x * x
 
 distance p1 p2 = sqrt $ square (pX p1 - pX p2) + square (pY p1 - pY p2)
 
-intersection :: Line -> Line -> Maybe Point
-intersection (VerticalLine _) (VerticalLine _) = Nothing
-intersection functionLine@FunctionLine{} (VerticalLine i) = Just $ Point i (valueAt functionLine i)
-intersection (VerticalLine i) functionLine@FunctionLine{} = Just $ Point i (valueAt functionLine i)
-intersection (FunctionLine firstSlope firstIntercept) (FunctionLine secondSlope secondIntercept) =
-  if firstSlope == secondSlope
-  then Nothing
-  else let lhsCoefficient = firstSlope - secondSlope
-           rhs = secondIntercept - firstIntercept
-           xIntersection = rhs / lhsCoefficient
-           yIntersection = valueAt (FunctionLine firstSlope firstIntercept) xIntersection
-  in Just $ Point xIntersection yIntersection
+mkVector (Point x y) = Vector x y
+scale (Vector x y) coefficient = Vector (coefficient * x) (coefficient * y)
 
+--rotate :: (Num a) => Line -> a -> Line
+rotate (Line start end) radians = Line (rotatePoint start radians) (rotatePoint end radians)
 
+rotatePoint (Point x y) radians = let ascomplex = x :+ y
+                                      (norm, startangle) = polar ascomplex
+                                      newangle = startangle + radians
+                                      newcomplex = mkPolar norm newangle
+                                   in Point (realPart newcomplex) (imagPart newcomplex)
 
+getAngle (Point x y) = let ascomplex = x :+ y
+                           (_, angle) = polar ascomplex
+                       in angle
 
-perpindicular (VerticalLine _) targetPoint = FunctionLine 0 $ pY targetPoint
-perpindicular (FunctionLine slope intercept) targetPoint = if slope == 0
-                                                           then VerticalLine $ pX targetPoint
-                                                           else let perpindicularSlope = (-1) * (1 / slope)
-                                                                in lineThrough perpindicularSlope targetPoint
-closestPointOnLine point line = let perpindicularLine = perpindicular line point
-                                    Just closestPointOnLine = intersection perpindicularLine line
+inputFor line@(Line start end) target = (pX end) + ((target - (pY end)) / (slope line))
+
+intersection :: Line -> Line -> Point
+intersection first second = let (Line start end) = first
+                                theta = getAngle $ translate end (scale (mkVector start) (-1))
+                                negTheta = (-1) * theta
+                                rFirst = rotate first negTheta
+                                rSecond = rotate second negTheta
+                                Line (Point _ yvalue) _ = rFirst
+                                xAxisCollide = inputFor rSecond yvalue
+                            in rotatePoint (Point xAxisCollide yvalue) theta
+
+perpendicular line throughPoint = let perpendicularSlope = (-1) * (1 / (slope line))
+                                      delta = Vector 1 perpendicularSlope
+                                      newEnd = translate throughPoint delta
+                                  in Line throughPoint newEnd
+
+closestPointOnLine point line = let perpendicularLine = perpendicular line point
+                                    closestPointOnLine = intersection perpendicularLine line
                                 in closestPointOnLine
+
 
 distanceToSegment point segment = let p = closestPointOnLine point $ segmentToLine segment
                                       Segment alpha beta = segment
@@ -55,45 +61,35 @@ distanceToSegment point segment = let p = closestPointOnLine point $ segmentToLi
 
 
 segmentToLine :: Segment -> Line
-segmentToLine segment = if isVertical segment
-                    then let Segment (Point x _) _ = segment
-                         in VerticalLine x
-                    else let theslope = segmentSlope segment
-                             Segment point _ = segment
-                             intercept = yIntercept theslope point
-                         in FunctionLine theslope intercept
+segmentToLine (Segment a b) = Line a b
 
 segmentIntersection :: Segment -> Segment -> Maybe Point
 segmentIntersection firstSegment secondSegment =
   let firstLine = segmentToLine firstSegment
       secondLine = segmentToLine secondSegment
-  in do
-    -- monads!
-    theIntersection <- intersection firstLine secondLine
-    forceIntoDomains theIntersection [firstSegment, secondSegment]
+      theIntersection = intersection firstLine secondLine
+  in
+      forceIntoDomains theIntersection [firstSegment, secondSegment]
 
-
-
-segmentSlope :: Segment -> Float
-segmentSlope (Segment from to) =
+slope (Line from to) =
   let rise = pY to - pY from
       run = pX to - pX from
   in (rise / run)
 
-
 makeSegment = Segment
-
-isVertical (Segment from to) = pX from == pX to
 
 segmentIntersects :: Segment -> Segment -> Bool
 segmentIntersects first second = let intersection = segmentIntersection first second
                                  in isJust intersection
 
-inRange value range =
-   (value <= rUpper range) && (value >= rLower range)
+epsilon = 0.0001
 
-pointInSegment point (Segment from to) = (inRange (pX point) $ makeRange (pX from) (pX to)) &&
-                                         (inRange (pY point) $ makeRange (pY from) (pY to))
+inRange value range epsilon =
+   (value <= (rUpper range) + epsilon) && (value >= (rLower range) - epsilon)
+
+
+pointInSegment point (Segment from to) = (inRange (pX point) (makeRange (pX from) (pX to)) epsilon) &&
+                                         (inRange (pY point) (makeRange (pY from) (pY to)) epsilon)
 
 inSegments :: Point -> [Segment] -> Bool
 inSegments point = all (pointInSegment point)

@@ -17,6 +17,7 @@ cabal-version:       >=1.8
 executable vectorracing
   hs-source-dirs: src
   main-is: Main.hs
+  ghc-options: -fwarn-unused-binds
   build-depends: base    == 4.*,
                  vty,
                  transformers,

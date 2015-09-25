@@ -17,7 +17,6 @@ import Control.Monad.Trans.Maybe
 import Control.Concurrent
 
 
-data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 
 
 data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
@@ -32,7 +31,6 @@ data GameConfig = GameConfig { getCourse :: Course }
 add :: Vector -> Vector -> Vector
 add v1 v2 = Vector (vX v1 + vX v2) (vY v1 + vY v2)
 
-translate p v = Point (vX v + pX p) (vY v + pY p)
 
 coast car = let new_position = translate (position car) (velocity car)
             in CarState new_position (velocity car)
@@ -88,7 +86,7 @@ placeCar x y carState course = if (position carState) == Point x y
 
 placeEarth x y carState course = Just "_"
 
-placeCourse x y carState course = if (distanceToCourse (Point x y) course) < 1
+placeCourse x y carState course = if (distanceToCourse (Point x y) course) < 0.5
                                   then Just "W"
                                   else Nothing
 
