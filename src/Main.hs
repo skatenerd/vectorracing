@@ -86,7 +86,7 @@ placeCar x y carState course = if (position carState) == Point x y
 
 placeEarth x y carState course = Just "_"
 
-placeCourse x y carState course = if (distanceToCourse (Point x y) course) < 0.5
+placeCourse x y carState course = if (distanceToCourse (Point x y) course) < 0.01
                                   then Just "W"
                                   else Nothing
 
