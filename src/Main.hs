@@ -1,23 +1,15 @@
 module Main where
-import Data.Bool
-import Data.Maybe
-import Debug.Trace
-import Data.List
 
 import Geometry
 
-import Data.Monoid
-import Control.Monad
+import Data.Maybe
+import Data.List
+
 import Control.Monad.Loops
-import Control.Monad.Trans
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Trans.Either
-import Control.Monad.Trans.Maybe
-import Control.Concurrent
 
-
-
+--import Debug.Trace
 
 data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
 data GameState = GameState {getCarState :: CarState, lastCarState :: CarState} deriving (Show)
