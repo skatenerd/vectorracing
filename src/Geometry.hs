@@ -9,43 +9,53 @@ data Segment = Segment Point Point deriving (Show)
 data Range = Range { rLower :: Float, rUpper :: Float }
 data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 
-class Rotatable a where
-  rotate :: a -> Float -> a
+lineToSegment (Line a b) = Segment a b
+segmentToLine (Segment a b) = Line a b
+mkVector (Point x y) = Vector x y
 
-instance Rotatable Point where
+class CartesianResident a where
+  rotate :: a -> Float -> a
+  getAngle :: a -> Float
+  translate :: a -> Vector -> a
+
+instance CartesianResident Point where
   rotate (Point x y) radians = let ascomplex = x :+ y
                                    (norm, startangle) = polar ascomplex
                                    newangle = startangle + radians
                                    newcomplex = mkPolar norm newangle
                                 in Point (realPart newcomplex) (imagPart newcomplex)
+  translate p v = Point (vX v + pX p) (vY v + pY p)
+  getAngle (Point x y) = let ascomplex = x :+ y
+                             (_, angle) = polar ascomplex
+                         in angle
 
-instance Rotatable Line where
-  rotate (Line start end) radians = Line (rotate start radians) (rotate end radians)
-
-instance Rotatable Segment where
+instance CartesianResident Segment where
   rotate (Segment start end) radians = Segment (rotate start radians) (rotate end radians)
+  translate (Segment start end) v = Segment (translate start v) (translate end v)
+  getAngle segment@(Segment start end) = let reverseVector = scale (mkVector start) (-1)
+                                             atOrigin = translate segment reverseVector
+                                             (Segment _ newEnd) = atOrigin
+                                         in getAngle newEnd
 
-translate p v = Point (vX v + pX p) (vY v + pY p)
+-- can we dry this up using composition?
+instance CartesianResident Line where
+  rotate line radians = segmentToLine (rotate (lineToSegment line) radians)
+  translate line v = segmentToLine (translate (lineToSegment line) v)
+  getAngle line = getAngle $ lineToSegment line
 
 distance p1 p2 = sqrt $ square (pX p1 - pX p2) + square (pY p1 - pY p2)
                  where square x = x * x
 
-mkVector (Point x y) = Vector x y
 scale (Vector x y) coefficient = Vector (coefficient * x) (coefficient * y)
 
-getAngle (Point x y) = let ascomplex = x :+ y
-                           (_, angle) = polar ascomplex
-                       in angle
-
 intersection :: Line -> Line -> Point
-intersection first second = let angleForFlatten = (-1) * (segmentAngle first)
+intersection first second = let angleForFlatten = (-1) * (getAngle first)
                                 rFirst = rotate first angleForFlatten
                                 rSecond = rotate second angleForFlatten
                                 Line (Point _ yvalue) _ = rFirst
                                 xAxisCollide = inverseLine rSecond yvalue
                             in rotate (Point xAxisCollide yvalue) ((-1) * angleForFlatten)
 
-segmentAngle (Line start end) = getAngle $ translate end (scale (mkVector start) (-1))
 inverseLine line@(Line start end) target = (pX end) + ((target - (pY end)) / (slope line))
 
 perpendicular line throughPoint = let perpendicularSlope = (-1) * (1 / (slope line))
@@ -55,9 +65,6 @@ perpendicular line throughPoint = let perpendicularSlope = (-1) * (1 / (slope li
 
 distanceToSegment point segment = let p = closestPointOnSegment point segment
                                   in distance p point
-
-segmentToLine :: Segment -> Line
-segmentToLine (Segment a b) = Line a b
 
 inSegments :: Point -> [Segment] -> Bool
 inSegments point = all (pointInSegment point)
