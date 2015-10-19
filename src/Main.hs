@@ -15,9 +15,14 @@ data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show
 data GameState = GameState {getCarState :: CarState, lastCarState :: CarState} deriving (Show)
 data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show)
 type Shape = [Point]
-type Course = [Shape]
+type OldCourse = [Shape]
 
-data GameConfig = GameConfig { getCourse :: Course }
+type Course = [Segment]
+
+pointsAlong = concatMap segmentPoints
+progress point course = findIndex
+
+data GameConfig = GameConfig { getOldCourse :: OldCourse }
 
 
 add :: Vector -> Vector -> Vector
@@ -40,11 +45,11 @@ vectorForDirection Down = Vector 0 (-1)
 
 distanceToShape p shape = minimum (map (distanceToSegment p) (getWalls shape))
 
-distanceToCourse p course = minimum (map (distanceToShape p) course)
+distanceToOldCourse p course = minimum (map (distanceToShape p) course)
 
 hitsShape segment shape = any (segmentIntersects segment) $ getWalls shape
 
-hitsCourse segment = any (hitsShape segment)
+hitsOldCourse segment = any (hitsShape segment)
 
 getWalls shape = [makeSegment x y | x <- shape, y <- shape]
 
@@ -53,13 +58,13 @@ accelerate car direction = CarState (position car) (add (vectorForDirection dire
 takeTurn state direction course = let with_newVelocity = accelerate state direction
                                       afterCoast = coast with_newVelocity
                                       segmentCreated = makeSegment (position state) (position afterCoast)
-                                   in if hitsCourse segmentCreated course then
+                                   in if hitsOldCourse segmentCreated course then
                                          Nothing else
                                          Just afterCoast
 
-noCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
-                                       afterCoast = coast with_newVelocity
-                                   in afterCoast
+noOldCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
+                                          afterCoast = coast with_newVelocity
+                                      in afterCoast
 
 
 
@@ -78,12 +83,13 @@ placeCar x y carState course = if (position carState) == Point x y
 
 placeEarth x y carState course = Just "_"
 
-placeCourse x y carState course = if (distanceToCourse (Point x y) course) < 0.01
+placeOldCourse x y carState course = if (distanceToOldCourse (Point x y) course) < 0.01
                                   then Just "W"
                                   else Nothing
 
--- this should be a fold...
-renderSquare x y carState course = fromJust $ maybeOr (maybeOr (placeCar x y carState course) (placeCourse x y carState course)) (placeEarth x y carState course)
+renderSquare x y carState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y carState course,
+                                                                          placeOldCourse x y carState course,
+                                                                          placeEarth x y carState course]
 
 renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-10..10]]
 
@@ -119,14 +125,14 @@ incstate = do
   userInput <- liftIO promptInput
   theConfig <- lift ask
   let delta = inputToDelta userInput
-  put $ GameState (noCourseTakeTurn (getCarState now) delta) (getCarState now)
+  put $ GameState (noOldCourseTakeTurn (getCarState now) delta) (getCarState now)
   newnow <- get
-  liftIO $ putStrLn $ render (getCarState newnow) $ getCourse theConfig
+  liftIO $ putStrLn $ render (getCarState newnow) $ getOldCourse theConfig
 
 crash = do
   gamestate <- get
   theConfig <- lift ask
-  return $ hitsCourse (makeSegment (position $ getCarState gamestate) (position $ lastCarState gamestate)) (getCourse theConfig)
+  return $ hitsOldCourse (makeSegment (position $ getCarState gamestate) (position $ lastCarState gamestate)) (getOldCourse theConfig)
 
 startCarState = CarState (Point 0 0) (Vector 0 0)
 startGameState = GameState startCarState startCarState

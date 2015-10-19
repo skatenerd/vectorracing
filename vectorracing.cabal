@@ -20,16 +20,12 @@ executable vectorracing
   ghc-options: -fwarn-unused-binds
   build-depends: base    == 4.*,
                  vty,
-                 transformers,
-                 either,
                  mtl,
-                 data-default,
-                 monad-loops,
-                 text
+                 monad-loops
 
 
-executable spec
-  hs-source-dirs: test, src
-  main-is: Spec.hs
-  build-depends:       base    == 4.*
-                       , hspec   >= 1.3
+--executable spec
+--  hs-source-dirs: test, src
+--  main-is: Spec.hs
+--  build-depends:       base    == 4.*
+--                       , hspec   >= 1.3

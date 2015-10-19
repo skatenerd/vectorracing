@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment, segmentPoints, segmentToVector) where
 
 import Data.Maybe
 import Data.Complex
@@ -12,6 +12,22 @@ data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 lineToSegment (Line a b) = Segment a b
 segmentToLine (Segment a b) = Line a b
 mkVector (Point x y) = Vector x y
+
+vnorm v = let (norm, _) = polar (vX v :+ vY v)
+          in norm
+
+segmentToVector segment@(Segment start end) = let reverseVector = scale (mkVector start) (-1)
+                                                  Segment _ fnorb = translate segment reverseVector
+                                                  difference = mkVector fnorb
+                                               in difference
+-- want point2vec
+segmentPoints segment@(Segment start end) = let reverseVector = scale (mkVector start) (-1)
+                                                Segment _ fnorb = translate segment reverseVector
+                                                difference = mkVector fnorb
+                                                intnorm = fromIntegral $ floor (vnorm difference)
+                                                unitdifference = scale difference (1 / (vnorm difference))
+                                                adscl n = translate start (scale unitdifference n)
+                                            in fmap adscl [1..intnorm]
 
 class CartesianResident a where
   rotate :: a -> Float -> a
