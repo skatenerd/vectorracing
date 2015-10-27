@@ -189,7 +189,7 @@ data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } 
 updateStateForMove state direction = GameState (noCourseTakeTurn (getCarState state) direction) (getCarState state)
 
 theSubtrees state backwardsPathToHere = let makeForDirection d = makeFutureTree (updateStateForMove state d)  ((d, getCarState state) : backwardsPathToHere)
-                                        in map makeForDirection [Up ..]
+                                        in map makeForDirection [Up, Down, LLeft, RRight]
 
 makeFutureTree state backwardsPathToHere = InfiniTree (state, backwardsPathToHere) (theSubtrees state backwardsPathToHere)
 
