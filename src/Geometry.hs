@@ -1,9 +1,10 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment, segmentPoints, segmentToVector) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale) where
 
 import Data.Maybe
 import Data.Complex
 
 data Line = Line Point Point deriving (Show)
+-- Point should be parameterized by a numeric type
 data Point = Point { pX :: Float, pY :: Float } deriving (Show, Eq)
 data Segment = Segment Point Point deriving (Show)
 data Range = Range { rLower :: Float, rUpper :: Float }
@@ -11,6 +12,7 @@ data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 
 lineToSegment (Line a b) = Segment a b
 segmentToLine (Segment a b) = Line a b
+vectorToPoint (Vector a b) = Point a b
 mkVector (Point x y) = Vector x y
 
 vnorm v = let (norm, _) = polar (vX v :+ vY v)
@@ -29,6 +31,10 @@ segmentPoints segment@(Segment start end) = let reverseVector = scale (mkVector 
                                                 adscl n = translate start (scale unitdifference n)
                                             in fmap adscl [1..intnorm]
 
+unitNormal segment = let v = segmentToVector segment
+                         scaled = scale v (1 / (vnorm v))
+                     in rotate scaled (pi / (-2))
+
 class CartesianResident a where
   rotate :: a -> Float -> a
   getAngle :: a -> Float
@@ -44,6 +50,12 @@ instance CartesianResident Point where
   getAngle (Point x y) = let ascomplex = x :+ y
                              (_, angle) = polar ascomplex
                          in angle
+
+instance CartesianResident Vector where
+  rotate v radians = mkVector (rotate (vectorToPoint v) radians)
+  translate v delta = mkVector (translate (vectorToPoint v) delta)
+  getAngle v = getAngle (vectorToPoint v)
+
 
 instance CartesianResident Segment where
   rotate (Segment start end) radians = Segment (rotate start radians) (rotate end radians)

@@ -1,9 +1,12 @@
 module Main where
 
+import Debug.Trace
+
 import Geometry
 
 import Data.Maybe
 import Data.List
+import Data.Function
 
 import Control.Monad.Loops
 import Control.Monad.State
@@ -13,16 +16,31 @@ import Control.Monad.Reader
 
 data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
 data GameState = GameState {getCarState :: CarState, lastCarState :: CarState} deriving (Show)
-data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show)
+data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show, Enum)
 type Shape = [Point]
-type OldCourse = [Shape]
 
-type Course = [Segment]
+data Course = Course { path :: Shape, obstacles :: [Shape] }
 
-pointsAlong = concatMap segmentPoints
-progress point course = findIndex
+glrp segment point = let normal = unitNormal segment
+                         scaled = scale normal 5
+                         inverted = scale scaled (-1)
+                     in ((translate point inverted), (translate point scaled))
 
-data GameConfig = GameConfig { getOldCourse :: OldCourse }
+
+glrps :: Segment -> [(Point, Point)]
+glrps segment = fmap (glrp segment) (segmentPoints segment)
+
+makeSegments points = zipWith Segment points (tail points)
+
+getLeftrightPairs points = concatMap glrps (makeSegments points)
+
+boundaries points = let leftrightpairs = getLeftrightPairs points
+                        (lefts, rights) = unzip leftrightpairs
+                    in  (makeSegments lefts, makeSegments rights)
+
+--progress point course = findIndex
+
+data GameConfig = GameConfig { getCourse :: Course }
 
 
 add :: Vector -> Vector -> Vector
@@ -45,55 +63,49 @@ vectorForDirection Down = Vector 0 (-1)
 
 distanceToShape p shape = minimum (map (distanceToSegment p) (getWalls shape))
 
-distanceToOldCourse p course = minimum (map (distanceToShape p) course)
+distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline
+distanceToCourse p course = let (lb, rb) = boundaries (path course)
+                            in min (distanceToPolyline p lb) (distanceToPolyline p rb)
 
 hitsShape segment shape = any (segmentIntersects segment) $ getWalls shape
 
-hitsOldCourse segment = any (hitsShape segment)
+hitsPolyline segment polyline = any (segmentIntersects segment) polyline
+hitsCourse segment course = let (lb, rb) = boundaries (path course)
+                            in (hitsPolyline segment lb) || (hitsPolyline segment rb)
 
+-- a "shape" is a collection of points whose order doesn't matter
 getWalls shape = [makeSegment x y | x <- shape, y <- shape]
 
 accelerate car direction = CarState (position car) (add (vectorForDirection direction) (velocity car))
 
-takeTurn state direction course = let with_newVelocity = accelerate state direction
-                                      afterCoast = coast with_newVelocity
-                                      segmentCreated = makeSegment (position state) (position afterCoast)
-                                   in if hitsOldCourse segmentCreated course then
-                                         Nothing else
-                                         Just afterCoast
-
-noOldCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
-                                          afterCoast = coast with_newVelocity
-                                      in afterCoast
-
-
-
-updateNth :: [a] -> Int -> (a -> a) -> [a]
-updateNth (first:rest) 0 howToChange = (howToChange first) : rest
-updateNth (first:rest) index howToChange = first : updateNth rest (index - 1) howToChange
-updateNth stuff _ _ = stuff
+noCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
+                                       afterCoast = coast with_newVelocity
+                                    in afterCoast
 
 maybeOr a b = case a of
               Nothing -> b
               Just _ -> a
 
-placeCar x y carState course = if (position carState) == Point x y
+placeCar x y carState course = if (position carState) == (Point `on` fromIntegral) x y
                                then Just "C"
                                else Nothing
 
 placeEarth x y carState course = Just "_"
 
-placeOldCourse x y carState course = if (distanceToOldCourse (Point x y) course) < 0.01
+placeCourse x y carState course = if (distanceToCourse ((Point `on` fromIntegral) x y) course) < 0.5
                                   then Just "W"
                                   else Nothing
 
+renderSquare :: Integer -> Integer -> CarState -> Course -> String
 renderSquare x y carState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y carState course,
-                                                                          placeOldCourse x y carState course,
+                                                                          placeCourse x y carState course,
                                                                           placeEarth x y carState course]
 
-renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-10..10]]
+renderRow :: Integer -> CarState -> Course -> String
+renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..20]]
 
-render state course = intercalate "\n" [renderRow y state course | y <- [10, 9 .. -10]]
+render :: CarState -> Course -> String
+render state course = intercalate "\n" [renderRow y state course | y <- [20, 19 .. -20]]
 
 inputToDelta "up" = Up
 inputToDelta "upright" = UpRight
@@ -122,23 +134,79 @@ incstate :: StateT GameState (ReaderT GameConfig IO) ()
 incstate = do
   now <- get
   liftIO $ print now
-  userInput <- liftIO promptInput
   theConfig <- lift ask
-  let delta = inputToDelta userInput
-  put $ GameState (noOldCourseTakeTurn (getCarState now) delta) (getCarState now)
+  --userInput <- liftIO promptInput
+  --let delta = inputToDelta userInput
+  --TODO: EW!
+  let delta = fst $ last $ snd $ getValue $ bestFutureState (getCourse theConfig) now
+  put $ GameState (noCourseTakeTurn (getCarState now) delta) (getCarState now)
   newnow <- get
-  liftIO $ putStrLn $ render (getCarState newnow) $ getOldCourse theConfig
+  liftIO $ putStrLn $ render (getCarState newnow) $ getCourse theConfig
+  liftIO $ print $ progress (getCourse theConfig) now
 
 crash = do
   gamestate <- get
   theConfig <- lift ask
-  return $ hitsOldCourse (makeSegment (position $ getCarState gamestate) (position $ lastCarState gamestate)) (getOldCourse theConfig)
+  return $ hitsCourse (makeSegment (position $ getCarState gamestate) (position $ lastCarState gamestate)) (getCourse theConfig)
 
-startCarState = CarState (Point 0 0) (Vector 0 0)
+startCarState = CarState (Point (-10) (-10)) (Vector 0 0)
 startGameState = GameState startCarState startCarState
 
 squareBarrier = [[Point 3 3, Point 3 5, Point 5 5, Point 5 3], [Point (-8) (-8), Point (-8) 8], [Point (-8) 8, Point 8 8]]
 
+thecourse = [(Point (-10) (-10)), (Point 0 0), (Point 1 15)]
+
 -- TODO: try reading some config values from a file...
 -- TODO: use someting ncurses-like instead of reprinting everything
-main = putStrLn "\n\n\nWelcome!!!" >> (runReaderT (runStateT (untilM incstate crash) startGameState) $ GameConfig squareBarrier)
+theconfig = GameConfig Course {path = thecourse, obstacles = squareBarrier}
+main = putStrLn "\n\n\nWelcome!!!" >> (runReaderT (runStateT (untilM incstate crash) startGameState) $ theconfig)
+
+
+carHasCrossed state segment = let zoom = Segment (position (getCarState state)) (position (lastCarState state))
+                              in segmentIntersects zoom segment
+
+
+
+
+
+
+
+
+-- AI
+progressMarkers course = let lrps = getLeftrightPairs (path course)
+                         in map (uncurry Segment) lrps
+
+indexOfLastElement elements predicate = let maybeDistanceFromEnd = ((flip findIndex) . reverse) elements predicate
+                                            distanceFromEnd = fromMaybe (length elements) maybeDistanceFromEnd
+                                        in (length elements) - distanceFromEnd
+
+progress :: Course -> GameState -> Integer
+progress course state = fromIntegral $ indexOfLastElement (progressMarkers course) (carHasCrossed state)
+
+data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
+
+
+updateStateForMove state direction = GameState (noCourseTakeTurn (getCarState state) direction) (getCarState state)
+
+theSubtrees state backwardsPathToHere = let makeForDirection d = makeFutureTree (updateStateForMove state d)  ((d, getCarState state) : backwardsPathToHere)
+                                        in map makeForDirection [Up ..]
+
+makeFutureTree state backwardsPathToHere = InfiniTree (state, backwardsPathToHere) (theSubtrees state backwardsPathToHere)
+
+bestNodeAtDepth 0 _ node = node
+bestNodeAtDepth depth score (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score) children)
+
+argmax score elements = foldr takemax (head elements) elements
+                        where takemax a b = if (score a) > (score b)
+                                            then a
+                                            else b
+
+bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (makeFutureTree state [])
+
+scoreState course node = let InfiniTree (state, howigothere) _ = node
+                             barsCrossed = progress course state
+                             mypath = makeSegments $ map (position . snd) howigothere
+                             collision = any ((flip hitsCourse) course) mypath
+                         in if collision
+                         then 0
+                         else barsCrossed
