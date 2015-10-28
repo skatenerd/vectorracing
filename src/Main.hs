@@ -104,10 +104,10 @@ renderSquare x y gameState course = fromMaybe " " $ foldl maybeOr Nothing [place
                                                                           placeEarth x y gameState course]
 
 renderRow :: Integer -> GameState -> Course -> String
-renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..20]]
+renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..45]]
 
 render :: GameState -> Course -> String
-render state course = intercalate "\n" [renderRow y state course | y <- [20, 19 .. -20]]
+render state course = intercalate "\n" [renderRow y state course | y <- [15, 14 .. -15]]
 
 inputToDelta "up" = Up
 inputToDelta "upright" = UpRight
@@ -181,7 +181,7 @@ startGameState = GameState {humanState = startCarState, aiState = startCarState}
 
 squareBarrier = [[Point 3 3, Point 3 5, Point 5 5, Point 5 3], [Point (-8) (-8), Point (-8) 8], [Point (-8) 8, Point 8 8]]
 
-thecourse = [(Point (-10) (-10)), (Point 0 0), (Point 1 15)]
+thecourse = [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 45 15)]
 
 -- TODO: try reading some config values from a file...
 -- TODO: use someting ncurses-like instead of reprinting everything
