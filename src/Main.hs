@@ -14,8 +14,8 @@ import Control.Monad.Reader
 
 --import Debug.Trace
 
-data CarState = CarState { position :: Point, velocity :: Vector} deriving (Show)
-data GameState = GameState {getCarState :: CarState, lastCarState :: CarState} deriving (Show)
+data CarState = CarState { position :: Point, velocity :: Vector, priorPosition :: Point} deriving (Show)
+data GameState = GameState { humanState :: CarState, aiState :: CarState } deriving (Show)
 data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show, Enum)
 type Shape = [Point]
 
@@ -76,35 +76,37 @@ hitsCourse segment course = let (lb, rb) = boundaries (path course)
 -- a "shape" is a collection of points whose order doesn't matter
 getWalls shape = [makeSegment x y | x <- shape, y <- shape]
 
-accelerate car direction = CarState (position car) (add (vectorForDirection direction) (velocity car))
-
-noCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
-                                       afterCoast = coast with_newVelocity
-                                    in afterCoast
-
 maybeOr a b = case a of
               Nothing -> b
               Just _ -> a
 
-placeCar x y carState course = if (position carState) == (Point `on` fromIntegral) x y
-                               then Just "C"
+areSamePoint (x,y) p = ((Point `on` fromIntegral) x y) == p
+
+placeCar x y gameState course = if areSamePoint (x,y) (position $ humanState gameState)
+                                then Just "C"
+                                else Nothing
+
+
+placeAI x y gameState course = if areSamePoint (x,y) (position $ aiState gameState)
+                               then Just "A"
                                else Nothing
 
-placeEarth x y carState course = Just "_"
+placeEarth x y gameState course = Just "_"
 
-placeCourse x y carState course = if (distanceToCourse ((Point `on` fromIntegral) x y) course) < 0.5
+placeCourse x y gameState course = if (distanceToCourse ((Point `on` fromIntegral) x y) course) < 0.5
                                   then Just "W"
                                   else Nothing
 
-renderSquare :: Integer -> Integer -> CarState -> Course -> String
-renderSquare x y carState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y carState course,
-                                                                          placeCourse x y carState course,
-                                                                          placeEarth x y carState course]
+renderSquare :: Integer -> Integer -> GameState -> Course -> String
+renderSquare x y gameState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y gameState course,
+                                                                          placeAI x y gameState course,
+                                                                          placeCourse x y gameState course,
+                                                                          placeEarth x y gameState course]
 
-renderRow :: Integer -> CarState -> Course -> String
+renderRow :: Integer -> GameState -> Course -> String
 renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..20]]
 
-render :: CarState -> Course -> String
+render :: GameState -> Course -> String
 render state course = intercalate "\n" [renderRow y state course | y <- [20, 19 .. -20]]
 
 inputToDelta "up" = Up
@@ -130,27 +132,52 @@ promptInput = let valid_inputs = ["up", "upright", "upleft", "left", "right", "d
                     print valid_inputs
                     promptInput
 
+
+
+accelerate car direction = car {velocity = (add (vectorForDirection direction) (velocity car))}
+
+noCourseTakeTurn state direction = let with_newVelocity = accelerate state direction
+                                       afterCoast = coast with_newVelocity
+                                    in afterCoast
+takeCarTurn :: CarState -> Direction -> CarState
+takeCarTurn state direction = newCoast (accelerate state direction)
+
+updateHumanState state delta = state { humanState = takeCarTurn (humanState state) delta }
+updateAIState state delta = state { aiState = takeCarTurn (aiState state) delta }
+
+
+newCoast car = let new_position = translate (position car) (velocity car)
+               in CarState new_position (velocity car) (position car)
+
+lastSegmentTravelled carState = makeSegment (position carState) (priorPosition carState)
+
 incstate :: StateT GameState (ReaderT GameConfig IO) ()
 incstate = do
   now <- get
   liftIO $ print now
   theConfig <- lift ask
-  --userInput <- liftIO promptInput
-  --let delta = inputToDelta userInput
+  userInput <- liftIO promptInput
+  let delta = inputToDelta userInput
   --TODO: EW!
-  let delta = fst $ last $ snd $ getValue $ bestFutureState (getCourse theConfig) now
-  put $ GameState (noCourseTakeTurn (getCarState now) delta) (getCarState now)
+  --let bestFutureNode = fst $ last $ snd $ getValue $ bestFutureState (getCourse theConfig) now
+  let bestFutureNode = bestFutureState (getCourse theConfig) (aiState now)
+      InfiniTree (imaginedState, history) _ = bestFutureNode
+      (aIdirection, carState) = head history
+      withHumanMove = updateHumanState now delta
+      withAIMove = updateAIState withHumanMove aIdirection
+  put $ withAIMove
   newnow <- get
-  liftIO $ putStrLn $ render (getCarState newnow) $ getCourse theConfig
-  liftIO $ print $ progress (getCourse theConfig) now
+  liftIO $ putStrLn $ render newnow $ getCourse theConfig
+  liftIO $ print $ progress (getCourse theConfig) (aiState now)
 
 crash = do
   gamestate <- get
   theConfig <- lift ask
-  return $ hitsCourse (makeSegment (position $ getCarState gamestate) (position $ lastCarState gamestate)) (getCourse theConfig)
+  return $ hitsCourse (lastSegmentTravelled (humanState gamestate)) (getCourse theConfig)
 
-startCarState = CarState (Point (-10) (-10)) (Vector 0 0)
-startGameState = GameState startCarState startCarState
+startCarState = CarState (Point (-10) (-10)) (Vector 0 0) (Point (-10) (-10))
+startAIState = CarState (Point (-12) (-12)) (Vector 0 0) (Point (-12) (-12))
+startGameState = GameState {humanState = startCarState, aiState = startCarState}
 
 squareBarrier = [[Point 3 3, Point 3 5, Point 5 5, Point 5 3], [Point (-8) (-8), Point (-8) 8], [Point (-8) 8, Point 8 8]]
 
@@ -162,14 +189,8 @@ theconfig = GameConfig Course {path = thecourse, obstacles = squareBarrier}
 main = putStrLn "\n\n\nWelcome!!!" >> (runReaderT (runStateT (untilM incstate crash) startGameState) $ theconfig)
 
 
-carHasCrossed state segment = let zoom = Segment (position (getCarState state)) (position (lastCarState state))
+carHasCrossed state segment = let zoom = lastSegmentTravelled state
                               in segmentIntersects zoom segment
-
-
-
-
-
-
 
 
 -- AI
@@ -180,18 +201,15 @@ indexOfLastElement elements predicate = let maybeDistanceFromEnd = ((flip findIn
                                             distanceFromEnd = fromMaybe (length elements) maybeDistanceFromEnd
                                         in (length elements) - distanceFromEnd
 
-progress :: Course -> GameState -> Integer
+progress :: Course -> CarState -> Integer
 progress course state = fromIntegral $ indexOfLastElement (progressMarkers course) (carHasCrossed state)
 
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
-
-updateStateForMove state direction = GameState (noCourseTakeTurn (getCarState state) direction) (getCarState state)
-
-theSubtrees state backwardsPathToHere = let makeForDirection d = makeFutureTree (updateStateForMove state d)  ((d, getCarState state) : backwardsPathToHere)
+theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)])
                                         in map makeForDirection [Up, Down, LLeft, RRight]
 
-makeFutureTree state backwardsPathToHere = InfiniTree (state, backwardsPathToHere) (theSubtrees state backwardsPathToHere)
+makeFutureTree state pathToHere = InfiniTree (state, pathToHere) (theSubtrees state pathToHere)
 
 bestNodeAtDepth 0 _ node = node
 bestNodeAtDepth depth score (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score) children)
@@ -201,6 +219,7 @@ argmax score elements = foldr takemax (head elements) elements
                                             then a
                                             else b
 
+-- add a 'prune' argument, because this is slow.  prune paths which crash into walls...
 bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (makeFutureTree state [])
 
 scoreState course node = let InfiniTree (state, howigothere) _ = node
