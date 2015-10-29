@@ -104,7 +104,7 @@ renderSquare x y gameState course = fromMaybe " " $ foldl maybeOr Nothing [place
                                                                           placeEarth x y gameState course]
 
 renderRow :: Integer -> GameState -> Course -> String
-renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..45]]
+renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..55]]
 
 render :: GameState -> Course -> String
 render state course = intercalate "\n" [renderRow y state course | y <- [15, 14 .. -15]]
@@ -154,21 +154,19 @@ lastSegmentTravelled carState = makeSegment (position carState) (priorPosition c
 incstate :: StateT GameState (ReaderT GameConfig IO) ()
 incstate = do
   now <- get
-  liftIO $ print now
+  --liftIO $ print now
   theConfig <- lift ask
   userInput <- liftIO promptInput
   let delta = inputToDelta userInput
-  --TODO: EW!
-  --let bestFutureNode = fst $ last $ snd $ getValue $ bestFutureState (getCourse theConfig) now
-  let bestFutureNode = bestFutureState (getCourse theConfig) (aiState now)
+      Just bestFutureNode = bestFutureState (getCourse theConfig) (aiState now) -- incomplete pattern mach!!
       InfiniTree (imaginedState, history) _ = bestFutureNode
-      (aIdirection, carState) = head history
+  liftIO $ print history
+  let (aIdirection, _) = head history
       withHumanMove = updateHumanState now delta
       withAIMove = updateAIState withHumanMove aIdirection
   put $ withAIMove
   newnow <- get
   liftIO $ putStrLn $ render newnow $ getCourse theConfig
-  liftIO $ print $ progress (getCourse theConfig) (aiState now)
 
 crash = do
   gamestate <- get
@@ -211,21 +209,27 @@ theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarT
 
 makeFutureTree state pathToHere = InfiniTree (state, pathToHere) (theSubtrees state pathToHere)
 
-bestNodeAtDepth 0 _ node = node
-bestNodeAtDepth depth score (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score) children)
+bestNodeAtDepth 0 _ _ node = return node
+bestNodeAtDepth depth score prune (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score prune) (filter prune children))
 
-argmax score elements = foldr takemax (head elements) elements
+argmax score elements = if null elements
+                        then Nothing
+                        else foldr takemax (head elements) elements
                         where takemax a b = if (score a) > (score b)
                                             then a
                                             else b
 
--- add a 'prune' argument, because this is slow.  prune paths which crash into walls...
-bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (makeFutureTree state [])
+collidesWithCourse course node = let InfiniTree (state, howigothere) _ = node
+                                     mypath = makeSegments $ map (position . snd) howigothere
+                                     collision = any ((flip hitsCourse) course) mypath
+                                 in collision
 
-scoreState course node = let InfiniTree (state, howigothere) _ = node
-                             barsCrossed = progress course state
-                             mypath = makeSegments $ map (position . snd) howigothere
-                             collision = any ((flip hitsCourse) course) mypath
-                         in if collision
-                         then 0
-                         else barsCrossed
+
+-- add a 'prune' argument, because this is slow.  prune paths which crash into walls...
+bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
+
+
+scoreState course Nothing = 0
+scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
+                                    barsCrossed = progress course state
+                                in barsCrossed
