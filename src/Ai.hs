@@ -13,7 +13,8 @@ import Data.List
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- top-level algorithm
-bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
+searchDepth = 4
+bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
 
 bestNodeAtDepth 0 _ _ node = return node
 bestNodeAtDepth depth score prune (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score prune) (filter prune children))
