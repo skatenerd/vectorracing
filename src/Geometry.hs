@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline) where
 
 import Data.Maybe
 import Data.Complex
@@ -129,3 +129,5 @@ closestPointOnSegment point segment = let perpendicularLine = perpendicular (seg
 
 makeRange :: Float -> Float -> Range
 makeRange first second = if first < second then Range first second else Range second first
+
+distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline

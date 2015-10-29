@@ -3,42 +3,18 @@ module Main where
 import Debug.Trace
 
 import Geometry
+import Rendering
+import GameTypes
+import Course
 
 import Data.Maybe
 import Data.List
-import Data.Function
 
 import Control.Monad.Loops
 import Control.Monad.State
 import Control.Monad.Reader
 
 --import Debug.Trace
-
-data CarState = CarState { position :: Point, velocity :: Vector, priorPosition :: Point} deriving (Show)
-data GameState = GameState { humanState :: CarState, aiState :: CarState } deriving (Show)
-data Direction = Up | UpRight | UpLeft | LLeft | RRight | DownRight | DownLeft | Down deriving (Show, Enum)
-type Shape = [Point]
-
-data Course = Course { path :: Shape, obstacles :: [Shape] }
-
-glrp segment point = let normal = unitNormal segment
-                         scaled = scale normal 5
-                         inverted = scale scaled (-1)
-                     in ((translate point inverted), (translate point scaled))
-
-
-glrps :: Segment -> [(Point, Point)]
-glrps segment = fmap (glrp segment) (segmentPoints segment)
-
-makeSegments points = zipWith Segment points (tail points)
-
-getLeftrightPairs points = concatMap glrps (makeSegments points)
-
-boundaries points = let leftrightpairs = getLeftrightPairs points
-                        (lefts, rights) = unzip leftrightpairs
-                    in  (makeSegments lefts, makeSegments rights)
-
---progress point course = findIndex
 
 data GameConfig = GameConfig { getCourse :: Course }
 
@@ -63,51 +39,14 @@ vectorForDirection Down = Vector 0 (-1)
 
 distanceToShape p shape = minimum (map (distanceToSegment p) (getWalls shape))
 
-distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline
-distanceToCourse p course = let (lb, rb) = boundaries (path course)
-                            in min (distanceToPolyline p lb) (distanceToPolyline p rb)
-
 hitsShape segment shape = any (segmentIntersects segment) $ getWalls shape
 
 hitsPolyline segment polyline = any (segmentIntersects segment) polyline
-hitsCourse segment course = let (lb, rb) = boundaries (path course)
+hitsCourse segment course = let (lb, rb) = boundaries course
                             in (hitsPolyline segment lb) || (hitsPolyline segment rb)
 
 -- a "shape" is a collection of points whose order doesn't matter
 getWalls shape = [makeSegment x y | x <- shape, y <- shape]
-
-maybeOr a b = case a of
-              Nothing -> b
-              Just _ -> a
-
-areSamePoint (x,y) p = ((Point `on` fromIntegral) x y) == p
-
-placeCar x y gameState course = if areSamePoint (x,y) (position $ humanState gameState)
-                                then Just "C"
-                                else Nothing
-
-
-placeAI x y gameState course = if areSamePoint (x,y) (position $ aiState gameState)
-                               then Just "A"
-                               else Nothing
-
-placeEarth x y gameState course = Just "_"
-
-placeCourse x y gameState course = if (distanceToCourse ((Point `on` fromIntegral) x y) course) < 0.5
-                                  then Just "W"
-                                  else Nothing
-
-renderSquare :: Integer -> Integer -> GameState -> Course -> String
-renderSquare x y gameState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y gameState course,
-                                                                          placeAI x y gameState course,
-                                                                          placeCourse x y gameState course,
-                                                                          placeEarth x y gameState course]
-
-renderRow :: Integer -> GameState -> Course -> String
-renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..55]]
-
-render :: GameState -> Course -> String
-render state course = intercalate "\n" [renderRow y state course | y <- [15, 14 .. -15]]
 
 inputToDelta "up" = Up
 inputToDelta "upright" = UpRight
@@ -159,7 +98,7 @@ incstate = do
   userInput <- liftIO promptInput
   let delta = inputToDelta userInput
       Just bestFutureNode = bestFutureState (getCourse theConfig) (aiState now) -- incomplete pattern mach!!
-      InfiniTree (imaginedState, history) _ = bestFutureNode
+      InfiniTree (_, history) _ = bestFutureNode
   liftIO $ print history
   let (aIdirection, _) = head history
       withHumanMove = updateHumanState now delta
@@ -192,7 +131,7 @@ carHasCrossed state segment = let zoom = lastSegmentTravelled state
 
 
 -- AI
-progressMarkers course = let lrps = getLeftrightPairs (path course)
+progressMarkers course = let lrps = getLeftrightPairs course
                          in map (uncurry Segment) lrps
 
 indexOfLastElement elements predicate = let maybeDistanceFromEnd = ((flip findIndex) . reverse) elements predicate
@@ -205,7 +144,7 @@ progress course state = fromIntegral $ indexOfLastElement (progressMarkers cours
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)])
-                                        in map makeForDirection [Up, Down, LLeft, RRight]
+                               in map makeForDirection [Up, Down, LLeft, RRight]
 
 makeFutureTree state pathToHere = InfiniTree (state, pathToHere) (theSubtrees state pathToHere)
 
@@ -219,17 +158,14 @@ argmax score elements = if null elements
                                             then a
                                             else b
 
-collidesWithCourse course node = let InfiniTree (state, howigothere) _ = node
+collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
                                      mypath = makeSegments $ map (position . snd) howigothere
                                      collision = any ((flip hitsCourse) course) mypath
                                  in collision
 
-
--- add a 'prune' argument, because this is slow.  prune paths which crash into walls...
 bestFutureState course state = bestNodeAtDepth 4 (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
 
-
 scoreState course Nothing = 0
-scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
+scoreState course (Just node) = let InfiniTree (state, _) _ = node
                                     barsCrossed = progress course state
                                 in barsCrossed
