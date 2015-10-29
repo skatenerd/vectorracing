@@ -1,4 +1,4 @@
-module Ai where
+module Ai(InfiniTree(InfiniTree), bestFutureState) where
 
 import Course
 import GameTypes
