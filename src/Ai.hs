@@ -13,7 +13,7 @@ import Data.List
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- top-level algorithm
-searchDepth = 4
+searchDepth = 5
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
 
 bestNodeAtDepth 0 _ _ node = return node
@@ -21,10 +21,10 @@ bestNodeAtDepth depth score prune (InfiniTree value children) = argmax score (ma
 
 argmax score elements = if null elements
                         then Nothing
-                        else foldr takemax (head elements) elements
-                        where takemax a b = if (score a) > (score b)
-                                            then a
-                                            else b
+                        else fst $ foldr takemax ((head elements), (score (head elements))) elements
+                        where takemax a (currentmax, maxscore) = if (score a) > maxscore
+                                            then (a, score a)
+                                            else (currentmax, maxscore)
 
 -- if we are going to traverse a tree, first we have to build it
 

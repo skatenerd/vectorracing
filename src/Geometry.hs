@@ -2,6 +2,7 @@ module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment
 
 import Data.Maybe
 import Data.Complex
+import Data.Function
 
 data Line = Line Point Point deriving (Show)
 -- Point should be parameterized by a numeric type
@@ -18,18 +19,14 @@ mkVector (Point x y) = Vector x y
 vnorm v = let (norm, _) = polar (vX v :+ vY v)
           in norm
 
-segmentToVector segment@(Segment start end) = let reverseVector = scale (mkVector start) (-1)
-                                                  Segment _ fnorb = translate segment reverseVector
-                                                  difference = mkVector fnorb
-                                               in difference
--- want point2vec
-segmentPoints segment@(Segment start end) = let reverseVector = scale (mkVector start) (-1)
-                                                Segment _ fnorb = translate segment reverseVector
-                                                difference = mkVector fnorb
+segmentToVector segment@(Segment start end) = pointDifference end start
+
+-- dry me up with utiliy functions
+segmentPoints segment@(Segment start end) = let difference = segmentToVector segment
                                                 intnorm = fromIntegral $ floor (vnorm difference)
                                                 unitdifference = scale difference (1 / (vnorm difference))
-                                                adscl n = translate start (scale unitdifference n)
-                                            in fmap adscl [1..intnorm]
+                                                addScaled n = translate start (scale unitdifference n)
+                                            in fmap addScaled [1..intnorm]
 
 unitNormal segment = let v = segmentToVector segment
                          scaled = scale v (1 / (vnorm v))
@@ -75,16 +72,21 @@ distance p1 p2 = sqrt $ square (pX p1 - pX p2) + square (pY p1 - pY p2)
                  where square x = x * x
 
 scale (Vector x y) coefficient = Vector (coefficient * x) (coefficient * y)
+invert v = scale v (-1)
+vectorDifference first second = translate first (invert second)
+pointDifference = (vectorDifference `on` mkVector)
+
+vectorFormat line = let Line start end = line
+                    in (start, Vector 1 (slope line))
+
+cross first second = ((vX first) * (vY second)) - ((vY first) * (vX second))
 
 intersection :: Line -> Line -> Point
-intersection first second = let angleForFlatten = (-1) * (getAngle first)
-                                rFirst = rotate first angleForFlatten
-                                rSecond = rotate second angleForFlatten
-                                Line (Point _ yvalue) _ = rFirst
-                                xAxisCollide = inverseLine rSecond yvalue
-                            in rotate (Point xAxisCollide yvalue) ((-1) * angleForFlatten)
-
-inverseLine line@(Line start end) target = (pX end) + ((target - (pY end)) / (slope line))
+intersection first second = let (firstBase, firstDelta) = vectorFormat first
+                                (secondBase, secondDelta) = vectorFormat second
+                                baseDelta = pointDifference secondBase firstBase
+                                coefficientForFirstDelta = (cross baseDelta secondDelta) / (cross firstDelta secondDelta)
+                            in translate firstBase (scale firstDelta coefficientForFirstDelta)
 
 perpendicular line throughPoint = let perpendicularSlope = (-1) * (1 / (slope line))
                                       delta = Vector 1 perpendicularSlope
@@ -111,9 +113,7 @@ segmentIntersects first second = let intersection = segmentIntersection first se
 
 segmentIntersection :: Segment -> Segment -> Maybe Point
 segmentIntersection firstSegment secondSegment =
-  let firstLine = segmentToLine firstSegment
-      secondLine = segmentToLine secondSegment
-      theIntersection = intersection firstLine secondLine
+  let theIntersection = (intersection `on` segmentToLine) firstSegment secondSegment
   in if inSegments theIntersection [firstSegment, secondSegment]
      then Just theIntersection
      else Nothing
