@@ -68,10 +68,7 @@ incstate = do
   theConfig <- lift ask
   userInput <- liftIO promptInput
   let delta = inputToDelta userInput
-      Just bestFutureNode = bestFutureState (getCourse theConfig) (aiState now) -- incomplete pattern mach!!
-      InfiniTree (_, history) _ = bestFutureNode
-  liftIO $ print history
-  let (aIdirection, _) = head history
+  let aIdirection = getMove (getCourse theConfig) (aiState now)--head history
       withHumanMove = updateHumanState now delta
       withAIMove = updateAIState withHumanMove aIdirection
   put $ withAIMove
@@ -89,7 +86,7 @@ startGameState = GameState {humanState = startCarState, aiState = startCarState}
 
 squareBarrier = [[Point 3 3, Point 3 5, Point 5 5, Point 5 3], [Point (-8) (-8), Point (-8) 8], [Point (-8) 8, Point 8 8]]
 
-thecourse = [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 45 15)]
+thecourse = [(Point (-20) (-20)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 45 15)]
 
 -- TODO: try reading some config values from a file...
 -- TODO: use someting ncurses-like instead of reprinting everything

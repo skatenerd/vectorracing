@@ -1,4 +1,4 @@
-module Ai(InfiniTree(InfiniTree), bestFutureState) where
+module Ai(getMove) where
 
 import Course
 import GameTypes
@@ -7,13 +7,19 @@ import Car
 
 import Data.Maybe
 import Data.List
+-- API
+getMove course carState = extractMove $ bestFutureState course carState
+                          where extractMove (Just node) = let InfiniTree (_, history) _ = node
+                                                              (direction, _) = head history
+                                                          in direction
+                                extractMove Nothing = Up
 
 
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- top-level algorithm
-searchDepth = 5
+searchDepth = 6
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
 
 bestNodeAtDepth 0 _ _ node = return node
@@ -56,7 +62,9 @@ carHasCrossed state segment = let zoom = lastSegmentTravelled state
 -- finally, a utility for pruning the tree
 collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
                                      mypath = makeSegments $ map (position . snd) howigothere
-                                     collision = any ((flip hitsCourse) course) mypath
-                                 in collision
+                                     collision = hitsCourse (last mypath) course
+                                 in if null mypath
+                                 then False
+                                 else collision
 
 
