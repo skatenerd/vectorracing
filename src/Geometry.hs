@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline) where
 
 import Data.Maybe
 import Data.Complex
@@ -131,3 +131,5 @@ makeRange :: Float -> Float -> Range
 makeRange first second = if first < second then Range first second else Range second first
 
 distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline
+
+hitsPolyline segment polyline = any (segmentIntersects segment) polyline
