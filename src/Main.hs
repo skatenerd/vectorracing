@@ -92,5 +92,3 @@ thecourse = [(Point (-20) (-20)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (P
 -- TODO: use someting ncurses-like instead of reprinting everything
 theconfig = GameConfig Course {path = thecourse, obstacles = squareBarrier}
 main = putStrLn "\n\n\nWelcome!!!" >> (runReaderT (runStateT (untilM incstate crash) startGameState) $ theconfig)
-
-

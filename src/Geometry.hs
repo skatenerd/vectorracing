@@ -77,7 +77,7 @@ vectorDifference first second = translate first (invert second)
 pointDifference = (vectorDifference `on` mkVector)
 
 vectorFormat line = let Line start end = line
-                    in (start, Vector 1 (slope line))
+                    in (start, pointDifference end start)
 
 cross first second = ((vX first) * (vY second)) - ((vY first) * (vX second))
 

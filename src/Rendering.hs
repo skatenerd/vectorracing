@@ -14,11 +14,20 @@ maybeOr a b = case a of
               Nothing -> b
               Just _ -> a
 
-areSamePoint (x,y) p = ((Point `on` fromIntegral) x y) == p
+areSamePoint (x,y) p = (coerceMakePoint x y) == p
+
+coerceMakePoint = Point `on` fromIntegral
 
 placeCar x y gameState course = if areSamePoint (x,y) (position $ humanState gameState)
                                 then Just "C"
                                 else Nothing
+
+placeWhoosh x y gameState course = let human = humanState gameState
+                                       whooshSegment = Segment (position human) (priorPosition human)
+                                       candidatePoint = (coerceMakePoint x y)
+                                   in if distanceToSegment candidatePoint whooshSegment < 0.5
+                                   then Just "*"
+                                   else Nothing
 
 
 placeAI x y gameState course = if areSamePoint (x,y) (position $ aiState gameState)
@@ -33,6 +42,7 @@ placeCourse x y gameState course = if (distanceToCourse ((Point `on` fromIntegra
 
 renderSquare :: Integer -> Integer -> GameState -> Course -> String
 renderSquare x y gameState course = fromMaybe " " $ foldl maybeOr Nothing [placeCar x y gameState course,
+                                                                          placeWhoosh x y gameState course,
                                                                           placeAI x y gameState course,
                                                                           placeCourse x y gameState course,
                                                                           placeEarth x y gameState course]
