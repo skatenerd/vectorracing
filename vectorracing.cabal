@@ -19,8 +19,7 @@ executable vectorracing
   main-is: Main.hs
   ghc-options: -fwarn-unused-binds
   build-depends: base    == 4.*,
-                 vty-ui,
-                 vty,
+                 ncurses,
                  text,
                  mtl,
                  monad-loops

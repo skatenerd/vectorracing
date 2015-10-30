@@ -51,5 +51,5 @@ renderRow :: Integer -> GameState -> Course -> String
 renderRow y state course = intercalate "" [renderSquare x y state course | x <- [-20..55]]
 
 render :: GameState -> Course -> String
-render state course = intercalate "\n" [renderRow y state course | y <- [15, 14 .. -15]]
+render state course = intercalate "\n" [renderRow y state course | y <- [15, 14 .. -10]]
 
