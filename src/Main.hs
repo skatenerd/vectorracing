@@ -47,6 +47,8 @@ showMessage w = do
       drawString $ "ENTER TO QUIT"
   lift render
   lift $ awaitEnter w
+  lift getEvent sad $ Just 1000
+  --lift $ getEvent sad $ Just 1000
 
 awaitEnter w = untilM render $ do
   key <- getEvent w Nothing
