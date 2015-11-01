@@ -1,4 +1,4 @@
-module Course (getLeftrightPairs, boundaries, makeSegments) where
+module Course (getLeftrightPairs, boundaries, makeSegments, distanceToCourse) where
 
 import Geometry
 import GameTypes
@@ -20,3 +20,6 @@ glrps segment = fmap (glrp segment) (segmentPoints segment)
 makeSegments points = zipWith Segment points (tail points)
 
 getLeftrightPairs course = concatMap glrps (makeSegments (path course))
+
+distanceToCourse p course = let (lb, rb) = boundaries course
+                            in min (distanceToPolyline p lb) (distanceToPolyline p rb)

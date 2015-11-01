@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm) where
 
 import Data.Maybe
 import Data.Complex
@@ -18,6 +18,8 @@ mkVector (Point x y) = Vector x y
 
 vnorm v = let (norm, _) = polar (vX v :+ vY v)
           in norm
+
+scaleSegment segment@(Segment start end) c = Segment start $ translate end $ scale (segmentToVector segment) c
 
 segmentToVector segment@(Segment start end) = pointDifference end start
 

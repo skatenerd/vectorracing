@@ -2,6 +2,7 @@ module Ai(getMove) where
 
 import Course
 import GameTypes
+import Debug.Trace
 import Geometry
 import Car
 
@@ -19,8 +20,8 @@ getMove course carState = extractMove $ bestFutureState course carState
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- top-level algorithm
-searchDepth = 6
-bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (collidesWithCourse course)) (makeFutureTree state [])
+searchDepth = 5
+bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (willCrash course)) (makeFutureTree state [])
 
 bestNodeAtDepth 0 _ _ node = return node
 bestNodeAtDepth depth score prune (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score prune) (filter prune children))
@@ -41,12 +42,13 @@ theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarT
 
 -- also, we need our scoring function
 
+
 scoreState course Nothing = 0
 scoreState course (Just node) = let InfiniTree (state, _) _ = node
                                     barsCrossed = progress course state
                                 in barsCrossed
 
-progress :: Course -> CarState -> Integer
+
 progress course state = fromIntegral $ indexOfLastElement (progressMarkers course) (carHasCrossed state)
 
 progressMarkers course = let lrps = getLeftrightPairs course
@@ -67,4 +69,11 @@ collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
                                  then False
                                  else collision
 
+
+-- Can I stop in time to not crash?
+willCrash course node = let  InfiniTree (state, _) _ = node
+                             projectedState = coast state
+                             projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) (vnorm (velocity state))
+                             (leftBoundaries, rightBoundaries) = boundaries course
+                         in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
 
