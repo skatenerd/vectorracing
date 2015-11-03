@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance) where
 
 import Data.Maybe
 import Data.Complex
@@ -7,7 +7,7 @@ import Data.Function
 data Line = Line Point Point deriving (Show)
 -- Point should be parameterized by a numeric type
 data Point = Point { pX :: Float, pY :: Float } deriving (Show, Eq)
-data Segment = Segment Point Point deriving (Show)
+data Segment = Segment Point Point deriving (Show, Eq)
 data Range = Range { rLower :: Float, rUpper :: Float }
 data Vector = Vector { vX :: Float, vY :: Float } deriving (Show)
 
@@ -82,6 +82,7 @@ vectorFormat line = let Line start end = line
                     in (start, pointDifference end start)
 
 cross first second = ((vX first) * (vY second)) - ((vY first) * (vX second))
+dot first second = (vX first) * (vX second) + (vY first) * (vY second)
 
 intersection :: Line -> Line -> Point
 intersection first second = let (firstBase, firstDelta) = vectorFormat first
@@ -112,6 +113,14 @@ makeSegment = Segment
 segmentIntersects :: Segment -> Segment -> Bool
 segmentIntersects first second = let intersection = segmentIntersection first second
                                  in isJust intersection
+
+segmentIntersectsGenerous first@(Segment fStart fEnd) second@(Segment sStart sEnd) =
+  let endsAlign = any id $ do
+      a <- [fStart, fEnd]
+      b <- [sStart, sEnd]
+      return (a == b)
+  in endsAlign || (segmentIntersects first second)
+
 
 segmentIntersection :: Segment -> Segment -> Maybe Point
 segmentIntersection firstSegment secondSegment =

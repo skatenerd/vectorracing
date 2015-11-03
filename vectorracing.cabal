@@ -20,6 +20,7 @@ executable vectorracing
   ghc-options: -fwarn-unused-binds
   build-depends: base    == 4.*,
                  unix,
+                 list-extras,
                  ncurses,
                  text,
                  mtl,

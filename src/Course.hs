@@ -1,4 +1,4 @@
-module Course (getLeftrightPairs, boundaries, makeSegments, distanceToCourse) where
+module Course (getLeftrightPairs, boundaries, makeSegments, distanceToCourse, pointsAlong) where
 
 import Geometry
 import GameTypes
@@ -16,6 +16,8 @@ glrp segment point = let normal = unitNormal segment
 
 glrps :: Segment -> [(Point, Point)]
 glrps segment = fmap (glrp segment) (segmentPoints segment)
+
+pointsAlong course = concatMap segmentPoints (makeSegments (path course))
 
 makeSegments points = zipWith Segment points (tail points)
 

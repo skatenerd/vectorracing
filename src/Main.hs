@@ -21,10 +21,20 @@ data GameConfig = GameConfig { getCourse :: Course }
 main :: IO ()
 main = runCurses $ void (runStateT top startGameState)
 
-startCarState = CarState (Point (-10) (-10)) (Vector 0 0) (Point (-10) (-10))
-startAIState = CarState (Point (-12) (-12)) (Vector 0 0) (Point (-12) (-12))
+startCarState = CarState (Point 8 (-2)) (Vector 0 0) (Point 8 (-2))
+startAIState = CarState (Point 7 2) (Vector 0 0) (Point 7 2)
 startGameState = GameState {humanState = startCarState, aiState = startAIState, quitted = False}
-thecourse = Course { path = [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 45 15)], obstacles=[]}
+thecourse = Course { path = [
+  (Point 8 0),
+  (Point 38 0),
+  (Point 46 8),
+  (Point 46 18),
+  (Point 38 26),
+  (Point 8 26),
+  (Point 0 18),
+  (Point 0 8),
+  (Point 8 0)],
+  obstacles=[]}
 hardCodedConfig = GameConfig thecourse
 
 top = do

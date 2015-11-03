@@ -8,6 +8,8 @@ import Car
 
 import Data.Maybe
 import Data.List
+import Data.List.Extras
+import Control.Applicative
 -- API
 getMove course carState = extractMove $ bestFutureState course carState
                           where extractMove (Just node) = let InfiniTree (_, history) _ = node
@@ -19,19 +21,30 @@ getMove course carState = extractMove $ bestFutureState course carState
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
+goingBackwards course candidate = hackyCompare progressAtStart progressAtEnd
+                                  where InfiniTree (carState, _) _ = candidate
+                                        progressAtStartz = argminIndex (distance (priorPosition carState)) waypoints
+                                        progressAtEndz  = argminIndex (distance (position carState)) waypoints
+                                        progressAtStart = progressAtStartz
+                                        progressAtEnd = progressAtEndz
+                                        waypoints = pointsAlong course
+                                        argminIndex score elements = fromMaybe 0 $ findIndex (== (argmin score elements)) elements
+                                        hackyCompare left right = if fromIntegral (abs (left - right)) < (vnorm (velocity carState))
+                                                                      then (left > right)
+                                                                      else False
+
 -- top-level algorithm
-searchDepth = 5
-bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (willCrash course)) (makeFutureTree state [])
+searchDepth = 6
+bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (fOr (willCrash course) (goingBackwards course))) (makeFutureTree state [])
+                               where fOr = liftA2 (||)
+
+safeArgmax predicate items = (catchNull $ argmax predicate) items
 
 bestNodeAtDepth 0 _ _ node = return node
-bestNodeAtDepth depth score prune (InfiniTree value children) = argmax score (map (bestNodeAtDepth (depth - 1) score prune) (filter prune children))
-
-argmax score elements = if null elements
-                        then Nothing
-                        else fst $ foldr takemax ((head elements), (score (head elements))) elements
-                        where takemax a (currentmax, maxscore) = if (score a) > maxscore
-                                            then (a, score a)
-                                            else (currentmax, maxscore)
+bestNodeAtDepth depth score prune (InfiniTree value children) = let searchableChildren = (filter prune children)
+                                                                    bestNodesUnderChildren = (map (bestNodeAtDepth (depth - 1) score prune) searchableChildren)
+                                                                    winner = safeArgmax score bestNodesUnderChildren
+                                                                in fromMaybe Nothing winner
 
 -- if we are going to traverse a tree, first we have to build it
 
@@ -44,12 +57,15 @@ theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarT
 
 
 scoreState course Nothing = 0
-scoreState course (Just node) = let InfiniTree (state, _) _ = node
-                                    barsCrossed = progress course state
+scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
+                                    barsCrossed = progress course state howigothere
                                 in barsCrossed
 
 
-progress course state = fromIntegral $ indexOfLastElement (progressMarkers course) (carHasCrossed state)
+progress course state history = let pastPositions = (map (position . snd) history) ++ [position state]
+                                    triplines = (progressMarkers course)
+                                    freshCourse = dropWhile (not . (carHasCrossed pastPositions)) triplines
+                                in length $ takeWhile (carHasCrossed pastPositions) freshCourse
 
 progressMarkers course = let lrps = getLeftrightPairs course
                          in map (uncurry Segment) lrps
@@ -58,8 +74,8 @@ indexOfLastElement elements predicate = let maybeDistanceFromEnd = ((flip findIn
                                             distanceFromEnd = fromMaybe (length elements) maybeDistanceFromEnd
                                         in (length elements) - distanceFromEnd
 
-carHasCrossed state segment = let zoom = lastSegmentTravelled state
-                              in segmentIntersects zoom segment
+carHasCrossed history segment = let segmentHistory = makeSegments history
+                                in any (segmentIntersectsGenerous segment) segmentHistory
 
 -- finally, a utility for pruning the tree
 collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
