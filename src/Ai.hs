@@ -21,22 +21,25 @@ getMove course carState = extractMove $ bestFutureState course carState
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
-goingBackwards course candidate = hackyCompare progressAtStart progressAtEnd
-                                  where InfiniTree (carState, _) _ = candidate
-                                        progressAtStartz = argminIndex (distance (priorPosition carState)) waypoints
-                                        progressAtEndz  = argminIndex (distance (position carState)) waypoints
-                                        progressAtStart = progressAtStartz
-                                        progressAtEnd = progressAtEndz
-                                        waypoints = pointsAlong course
-                                        argminIndex score elements = fromMaybe 0 $ findIndex (== (argmin score elements)) elements
-                                        hackyCompare left right = if fromIntegral (abs (left - right)) < (vnorm (velocity carState))
-                                                                      then (left > right)
-                                                                      else False
+goingBackwards course seedState candidate = if (crossesStartLine)
+                                            then progressAtEnd > progressAtStart
+                                            else progressAtEnd < progressAtStart
+                                            where InfiniTree (carState, history) _ = candidate
+                                                  progressAtStart = argminIndex (distance (position seedState)) waypoints
+                                                  progressAtEnd  = argminIndex (distance (position carState)) waypoints
+                                                  waypoints = pointsAlong course
+                                                  argminIndex score elements = fromMaybe 0 $ findIndex (== (argmin score elements)) elements
+                                                  maxV = maximum $ map vnorm (velocity seedState : (velocity carState : (map (velocity . snd) history)))
+                                                  crossesStartLine = fromIntegral (abs progressAtStart - progressAtEnd) > (maxV * (fromIntegral $ length history))
 
 -- top-level algorithm
-searchDepth = 6
-bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) (not . (fOr (willCrash course) (goingBackwards course))) (makeFutureTree state [])
-                               where fOr = liftA2 (||)
+searchDepth = 5
+bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
+                               where --fOr = liftA2 (||)
+                                     pruner node = let InfiniTree (carState, history) _ = node
+                                                   in if (map fst history) == [RRight, RRight, RRight]
+                                                      then not ((willCrash course node) || (goingBackwards course state node))
+                                                      else not ((willCrash course node) || (goingBackwards course state node))
 
 safeArgmax predicate items = (catchNull $ argmax predicate) items
 
@@ -44,7 +47,7 @@ bestNodeAtDepth 0 _ _ node = return node
 bestNodeAtDepth depth score prune (InfiniTree value children) = let searchableChildren = (filter prune children)
                                                                     bestNodesUnderChildren = (map (bestNodeAtDepth (depth - 1) score prune) searchableChildren)
                                                                     winner = safeArgmax score bestNodesUnderChildren
-                                                                in fromMaybe Nothing winner
+                                                                in  fromMaybe Nothing winner
 
 -- if we are going to traverse a tree, first we have to build it
 
@@ -63,7 +66,7 @@ scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
 
 
 progress course state history = let pastPositions = (map (position . snd) history) ++ [position state]
-                                    triplines = (progressMarkers course)
+                                    triplines = concatMap id $ replicate 2 (progressMarkers course)
                                     freshCourse = dropWhile (not . (carHasCrossed pastPositions)) triplines
                                 in length $ takeWhile (carHasCrossed pastPositions) freshCourse
 

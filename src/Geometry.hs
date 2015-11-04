@@ -28,7 +28,7 @@ segmentPoints segment@(Segment start end) = let difference = segmentToVector seg
                                                 intnorm = fromIntegral $ floor (vnorm difference)
                                                 unitdifference = scale difference (1 / (vnorm difference))
                                                 addScaled n = translate start (scale unitdifference n)
-                                            in fmap addScaled [1..intnorm]
+                                            in fmap addScaled [0..intnorm]
 
 unitNormal segment = let v = segmentToVector segment
                          scaled = scale v (1 / (vnorm v))
