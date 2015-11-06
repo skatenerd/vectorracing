@@ -12,9 +12,12 @@ import Geometry
 import qualified Rendering as R
 import Car
 import Ai
+import Course
 
 import Control.Monad.Loops
 import Control.Monad.Reader
+import Data.List
+import Data.Function
 
 data GameConfig = GameConfig { getCourse :: Course }
 
@@ -24,7 +27,7 @@ main = runCurses $ void (runStateT top startGameState)
 startCarState = CarState (Point 8 (-2)) (Vector 0 0) (Point 8 (-2))
 startAIState = CarState (Point 7 2) (Vector 0 0) (Point 7 2)
 startGameState = GameState {humanState = startCarState, aiState = startAIState, quitted = False}
-thecourse = Course { path = [
+thecourse = makeCourse [
   (Point 8 0),
   (Point 38 0),
   (Point 46 8),
@@ -33,8 +36,8 @@ thecourse = Course { path = [
   (Point 8 26),
   (Point 0 18),
   (Point 0 8),
-  (Point 8 0)],
-  obstacles=[]}
+  (Point 8 0)]
+  []
 hardCodedConfig = GameConfig thecourse
 
 top = do
@@ -50,7 +53,8 @@ top = do
 drawCourse course state w = do
   updateWindow w $ do
     moveCursor 0 0
-  drawColorfulString (R.render state course) w
+  let clumped = group (R.render state course)
+  forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
   render
 
 showEndState w course = do
@@ -86,24 +90,15 @@ makeCID Opponent = newColorID ColorRed ColorBlack 6
 makeCID Road = newColorID ColorBlack ColorBlack 7
 textColor = newColorID ColorBlack ColorWhite 8
 
-drawCharacter w (character, color) = do
+drawColorfulString w string color = do
    cid <- makeCID color --newColorID ColorBlue ColorGreen 1
    updateWindow w $ do
      setColor cid
-     drawString [character]
-
-drawColorfulString characters w = forM_ characters $ drawCharacter w
+     drawString string
 
 gameLoop w rows = do
   course <- asks getCourse
   oldstate <- get
-  --lift $ lift $ do
-  --  cid <- textColor
-  --  updateWindow w $ do
-  --    clear
-  --    moveCursor (rows - 1) 0
-  --    setColor cid
-  --    drawString $ "Enter Move: "
   lift $ lift $ drawCourse course oldstate w
   c <- lift $ lift $ getCharInput w
   case c of

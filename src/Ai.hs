@@ -33,10 +33,9 @@ goingBackwards course seedState candidate = if (crossesStartLine)
                                                   crossesStartLine = fromIntegral (abs progressAtStart - progressAtEnd) > (maxV * (fromIntegral $ length history))
 
 -- top-level algorithm
-searchDepth = 4
+searchDepth = 5
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
-                               where --fOr = liftA2 (||)
-                                     pruner node = let InfiniTree (carState, history) _ = node
+                               where pruner node = let InfiniTree (carState, history) _ = node
                                                    in if (map fst history) == [RRight, RRight, RRight]
                                                       then not ((willCrash course node) || (goingBackwards course state node))
                                                       else not ((willCrash course node) || (goingBackwards course state node))
@@ -93,6 +92,6 @@ collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
 willCrash course node = let  InfiniTree (state, _) _ = node
                              projectedState = coast state
                              projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) (vnorm (velocity state))
-                             (leftBoundaries, rightBoundaries) = boundaries course
+                             (leftBoundaries, rightBoundaries) = getBoundaries course
                          in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
 

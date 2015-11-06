@@ -27,6 +27,6 @@ vectorForDirection DownLeft = Vector (-1) (-1)
 vectorForDirection Down = Vector 0 (-1)
 
 
-hitsCourse segment course = let (lb, rb) = boundaries course
+hitsCourse segment course = let (lb, rb) = getBoundaries course
                             in (hitsPolyline segment lb) || (hitsPolyline segment rb)
 
