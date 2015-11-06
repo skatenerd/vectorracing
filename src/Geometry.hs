@@ -1,8 +1,9 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance, closestPointOnPolyline, between) where
 
 import Data.Maybe
 import Data.Complex
 import Data.Function
+import Data.List.Extras
 
 data Line = Line Point Point deriving (Show)
 -- Point should be parameterized by a numeric type
@@ -70,8 +71,11 @@ instance CartesianResident Line where
   translate line v = segmentToLine (translate (lineToSegment line) v)
   getAngle line = getAngle $ lineToSegment line
 
-distance p1 p2 = sqrt $ square (pX p1 - pX p2) + square (pY p1 - pY p2)
-                 where square x = x * x
+distance p1 p2 = sqrt $ squaredDistance p1 p2
+--distance p = sqrt . (squaredDistance p)
+
+squaredDistance p1 p2 = square (pX p1 - pX p2) + square (pY p1 - pY p2)
+                        where square x = x * x
 
 scale (Vector x y) coefficient = Vector (coefficient * x) (coefficient * y)
 invert v = scale v (-1)
@@ -144,3 +148,14 @@ makeRange first second = if first < second then Range first second else Range se
 distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline
 
 hitsPolyline segment polyline = any (segmentIntersects segment) polyline
+
+closestPointOnPolyline p polyline = closestPointOnSegment p closestSegment
+  where closestSegment = argmin (distanceToSegment p) polyline
+
+between p first second = let baseline = pointDifference second first
+                             candidate = pointDifference p first
+                             dotted = dot baseline candidate
+                             dotPositive = dotted > 0
+                             dotSmallEnough = dotted < threshold
+                             threshold = squaredDistance first second
+                         in dotPositive && dotSmallEnough

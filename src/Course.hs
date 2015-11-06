@@ -1,7 +1,8 @@
-module Course (getLeftrightPairs, boundaries, makeSegments, distanceToCourse, pointsAlong) where
+module Course (getLeftrightPairs, boundaries, makeSegments, distanceToCourse, pointsAlong, onRoad) where
 
 import Geometry
 import GameTypes
+import Data.List.Extras
 
 boundaries course = let leftrightpairs = getLeftrightPairs course
                         (lefts, rights) = unzip leftrightpairs
@@ -25,3 +26,10 @@ getLeftrightPairs course = concatMap glrps (makeSegments (path course))
 
 distanceToCourse p course = let (lb, rb) = boundaries course
                             in min (distanceToPolyline p lb) (distanceToPolyline p rb)
+
+onRoad p course = let (lb, rb) = boundaries course
+                      closer = argmin (distanceToPolyline p) [lb, rb]
+                      boundaryHit = closestPointOnPolyline p closer
+                      roadHit = closestPointOnPolyline p (makeSegments (path course))
+                  in between p boundaryHit roadHit
+
