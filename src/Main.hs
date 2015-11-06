@@ -45,7 +45,18 @@ top = do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
   lift render
-  untilM (runReaderT (gameLoop w rows) hardCodedConfig) (crash (getCourse hardCodedConfig)) >> showMessage w
+  untilM (runReaderT (gameLoop w rows) hardCodedConfig) (crash (getCourse hardCodedConfig)) >> showEndState w (getCourse hardCodedConfig) >> showMessage w
+
+drawCourse course state w = do
+  updateWindow w $ do
+    clear
+    moveCursor 0 0
+  drawColorfulString (R.render state course) w
+  render
+
+showEndState w course = do
+  endstate <- get
+  lift $ drawCourse course endstate w
 
 showMessage w = do
   sad <- lift $ newWindow 10 50 10 10
@@ -83,25 +94,26 @@ drawCharacter w (character, color) = do
 drawColorfulString characters w = forM_ characters $ drawCharacter w
 
 gameLoop w rows = do
-  c <- lift $ lift $ getCharInput w
   course <- asks getCourse
+  oldstate <- get
+  lift $ lift $ updateWindow w $ do
+    clear
+    moveCursor (rows - 1) 0
+    drawString $ "Enter Move: "
+  lift $ lift $ drawCourse course oldstate w
+  c <- lift $ lift $ getCharInput w
   case c of
       Quit -> do
         oldstate <- get
         put oldstate {quitted = True}
       MoveDirection d -> do
+        lift $ lift $ updateWindow w $ do
+          moveCursor (rows - 1) 0
+          drawString $ "Enter Move: " ++ (show c)
+        lift $ lift $ render
         oldstate <- get
         let newstate = updateState oldstate d course
         put newstate
-        lift $ lift $ do
-          cid <- makeCID Dust --newColorID ColorBlue ColorGreen 1
-          updateWindow w $ do
-            clear
-            moveCursor (rows - 1) 0
-            drawString $ "Enter Move: " ++ (show c)
-            moveCursor 0 0
-          drawColorfulString (R.render newstate course) w
-        lift $ lift render
 
 updateHumanState state delta = state { humanState = takeCarTurn (humanState state) delta }
 updateAIState state delta = state { aiState = takeCarTurn (aiState state) delta }
