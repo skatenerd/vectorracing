@@ -1,6 +1,7 @@
 module Rendering (render) where
 
 import Geometry
+import Car
 import GameTypes
 import Course
 import Data.Function

@@ -1,4 +1,4 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance, closestPointOnPolyline, between) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance, closestPointOnPolyline, between, pointDifference) where
 
 import Data.Maybe
 import Data.Complex

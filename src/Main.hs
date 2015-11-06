@@ -24,8 +24,8 @@ data GameConfig = GameConfig { getCourse :: Course }
 main :: IO ()
 main = runCurses $ void (runStateT top startGameState)
 
-startCarState = CarState (Point 8 (-2)) (Vector 0 0) (Point 8 (-2))
-startAIState = CarState (Point 7 2) (Vector 0 0) (Point 7 2)
+startCarState = CarState [Point 8 (-2), Point 8 (-2)]
+startAIState = CarState [Point 7 2, Point 7 2]
 startGameState = GameState {humanState = startCarState, aiState = startAIState, quitted = False}
 thecourse = makeCourse [
   (Point 8 0),
@@ -80,7 +80,10 @@ awaitEnter w = untilM render $ do
 
 over course = do
   gamestate <- get
-  return $ (quitted gamestate) || hitsCourse (lastSegmentTravelled (humanState gamestate)) course
+  return $ (quitted gamestate) || hitsCourse (lastSegmentTravelled (humanState gamestate)) course || playerWon course (aiState gamestate) || playerWon course (humanState gamestate)
+
+playerWon course playerState = totalProgress >= (length $ pointsAlong course)
+                               where totalProgress = progress course (positionHistory playerState)
 
 makeCID Dust = newColorID ColorYellow ColorBlack 1
 makeCID Car = newColorID ColorCyan ColorBlack 3

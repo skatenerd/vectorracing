@@ -14,7 +14,7 @@ computeBoundaries path = let leftrightpairs = computeLeftrightPairs path
 glrp segment point = let normal = unitNormal segment
                          scaled = scale normal courseWidth
                          inverted = scale scaled (-1)
-                     in ((translate point inverted), (translate point scaled))
+                     in (translate point inverted, translate point scaled)
 
 courseWidth = 5
 

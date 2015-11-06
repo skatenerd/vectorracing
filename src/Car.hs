@@ -6,15 +6,15 @@ import Course
 
 lastSegmentTravelled carState = makeSegment (position carState) (priorPosition carState)
 
+addToHistory carState point = CarState $ (positionHistory carState) ++ [point]
+
 takeCarTurn :: CarState -> Direction -> CarState
-takeCarTurn state direction = coast (accelerate state direction)
+takeCarTurn state direction = let newVelocity = translate (velocity state) (vectorForDirection direction)
+                                  nextPosition = translate (position state) newVelocity
+                              in addToHistory state nextPosition
 
-coast car = let new_position = translate (position car) (velocity car)
-            in CarState new_position (velocity car) (position car)
-
-
-accelerate car direction = car {velocity = (translate (vectorForDirection direction) (velocity car))}
-
+coast car = let newPosition = translate (position car) (velocity car)
+            in addToHistory car newPosition
 
 vectorForDirection :: Direction -> Vector
 vectorForDirection Up = Vector 0 1
@@ -30,3 +30,8 @@ vectorForDirection Down = Vector 0 (-1)
 hitsCourse segment course = let (lb, rb) = getBoundaries course
                             in (hitsPolyline segment lb) || (hitsPolyline segment rb)
 
+
+position car = last (positionHistory car)
+priorPosition car = (reverse $ positionHistory car) !! 1
+velocity car = pointDifference (position car) (priorPosition car)
+--position :: Point, velocity :: Vector, priorPosition :: Point

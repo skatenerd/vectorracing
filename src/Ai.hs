@@ -1,4 +1,4 @@
-module Ai(getMove) where
+module Ai(getMove, progress) where
 
 import Course
 import GameTypes
@@ -21,6 +21,7 @@ getMove course carState = extractMove $ bestFutureState course carState
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
+-- this is a pretty clownshoes function...
 goingBackwards course seedState candidate = if (crossesStartLine)
                                             then progressAtEnd > progressAtStart
                                             else progressAtEnd < progressAtStart
@@ -60,12 +61,11 @@ theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarT
 
 scoreState course Nothing = 0
 scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
-                                    barsCrossed = progress course state howigothere
+                                    barsCrossed = progress course ((map (position . snd) howigothere) ++ [position state])
                                 in barsCrossed
 
 
-progress course state history = let pastPositions = (map (position . snd) history) ++ [position state]
-                                    triplines = concatMap id $ replicate 2 (progressMarkers course)
+progress course pastPositions = let triplines = concat $ replicate 2 (progressMarkers course)
                                     freshCourse = dropWhile (not . (carHasCrossed pastPositions)) triplines
                                 in length $ takeWhile (carHasCrossed pastPositions) freshCourse
 
