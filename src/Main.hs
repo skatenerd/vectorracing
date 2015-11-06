@@ -68,6 +68,20 @@ crash course = do
   gamestate <- get
   return $ (quitted gamestate) || hitsCourse (lastSegmentTravelled (humanState gamestate)) course
 
+makeCID Dust = newColorID ColorYellow ColorBlack 1
+makeCID Car = newColorID ColorCyan ColorBlack 3
+makeCID Earth = newColorID ColorGreen ColorBlack 4
+makeCID Wall = newColorID ColorYellow ColorBlack 5
+makeCID Opponent = newColorID ColorRed ColorBlack 6
+
+drawCharacter w (character, color) = do
+   cid <- makeCID color --newColorID ColorBlue ColorGreen 1
+   updateWindow w $ do
+     setColor cid
+     drawString [character]
+
+drawColorfulString characters w = forM_ characters $ drawCharacter w
+
 gameLoop w rows = do
   c <- lift $ lift $ getCharInput w
   course <- asks getCourse
@@ -79,14 +93,14 @@ gameLoop w rows = do
         oldstate <- get
         let newstate = updateState oldstate d course
         put newstate
-        lift $ lift $ updateWindow w $ do
-            moveCursor (rows - 1) 0
-            drawString $ replicate 40 ' '--hack...
+        lift $ lift $ do
+          cid <- makeCID Dust --newColorID ColorBlue ColorGreen 1
+          updateWindow w $ do
+            clear
             moveCursor (rows - 1) 0
             drawString $ "Enter Move: " ++ (show c)
-            moveCursor (rows - 1) 12
             moveCursor 0 0
-            drawString $ R.render newstate course
+          drawColorfulString (R.render newstate course) w
         lift $ lift render
 
 updateHumanState state delta = state { humanState = takeCarTurn (humanState state) delta }
