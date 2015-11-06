@@ -150,7 +150,8 @@ distanceToPolyline p polyline = minimum $ map (distanceToSegment p) polyline
 hitsPolyline segment polyline = any (segmentIntersects segment) polyline
 
 closestPointOnPolyline p polyline = closestPointOnSegment p closestSegment
-  where closestSegment = argmin (distanceToSegment p) polyline
+  where closestSegment = argmin (distanceSquaredToSegment p) polyline
+        distanceSquaredToSegment p segment = squaredDistance p (closestPointOnSegment p segment)
 
 between p first second = let baseline = pointDifference second first
                              candidate = pointDifference p first

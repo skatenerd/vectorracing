@@ -33,18 +33,25 @@ placeAI x y gameState course = if areSamePoint (x,y) (position $ aiState gameSta
 
 placeEarth x y gameState course = Just (' ', Earth)
 
-placeCourse x y gameState course = if closeToCourse && (not (onRoad thePoint course))
+placeWall x y gameState course = if closeToCourse && (not (onRoad thePoint course))
                                    then Just ('W', Wall)
                                    else Nothing
                                      where closeToCourse = distanceToCourse thePoint course < 2
                                            thePoint = ((Point `on` fromIntegral) x y)
+
+placeRoad x y gameState course = if (onRoad thePoint course)
+                                   then Just (' ', Road)
+                                   else Nothing
+                                     where thePoint = ((Point `on` fromIntegral) x y)
+
 
 
 renderSquare :: Integer -> Integer -> GameState -> Course -> (Char, GameColors)
 renderSquare x y gameState course = fromMaybe (' ', Dust) $ foldl maybeOr Nothing [placeCar x y gameState course,
                                                                                    placeAI x y gameState course,
                                                                                    placeWhoosh x y gameState course,
-                                                                                   placeCourse x y gameState course,
+                                                                                   placeWall x y gameState course,
+                                                                                   placeRoad x y gameState course,
                                                                                    placeEarth x y gameState course]
 
 renderRow :: Integer -> GameState -> Course -> [(Char, GameColors)]

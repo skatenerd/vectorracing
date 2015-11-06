@@ -33,7 +33,7 @@ goingBackwards course seedState candidate = if (crossesStartLine)
                                                   crossesStartLine = fromIntegral (abs progressAtStart - progressAtEnd) > (maxV * (fromIntegral $ length history))
 
 -- top-level algorithm
-searchDepth = 5
+searchDepth = 4
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
                                where --fOr = liftA2 (||)
                                      pruner node = let InfiniTree (carState, history) _ = node

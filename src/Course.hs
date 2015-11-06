@@ -10,10 +10,11 @@ boundaries course = let leftrightpairs = getLeftrightPairs course
 
 
 glrp segment point = let normal = unitNormal segment
-                         scaled = scale normal 5
+                         scaled = scale normal courseWidth
                          inverted = scale scaled (-1)
                      in ((translate point inverted), (translate point scaled))
 
+courseWidth = 5
 
 glrps :: Segment -> [(Point, Point)]
 glrps segment = fmap (glrp segment) (segmentPoints segment)
@@ -28,8 +29,7 @@ distanceToCourse p course = let (lb, rb) = boundaries course
                             in min (distanceToPolyline p lb) (distanceToPolyline p rb)
 
 onRoad p course = let (lb, rb) = boundaries course
-                      closer = argmin (distanceToPolyline p) [lb, rb]
-                      boundaryHit = closestPointOnPolyline p closer
-                      roadHit = closestPointOnPolyline p (makeSegments (path course))
-                  in between p boundaryHit roadHit
+                      leftBoundaryHit = closestPointOnPolyline p lb
+                      rightBoundaryHit = closestPointOnPolyline p rb
+                  in between p leftBoundaryHit rightBoundaryHit
 
