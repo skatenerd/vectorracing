@@ -24,6 +24,7 @@ computeLeftrightPairs path = concatMap pairsForSegment (makeSegments path)
                                               inverted = scale scaled (-1)
                                           in (translate point inverted, translate point scaled)
 
+
 distanceToCourse p course = let (lb, rb) = getBoundaries course
                             in min (distanceToPolyline p lb) (distanceToPolyline p rb)
 

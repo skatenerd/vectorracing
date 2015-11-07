@@ -22,16 +22,12 @@ getMove course carState = extractMove $ bestFutureState course carState
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- this is a pretty clownshoes function...
-goingBackwards course seedState candidate = if (crossesStartLine)
-                                            then progressAtEnd > progressAtStart
-                                            else progressAtEnd < progressAtStart
-                                            where InfiniTree (carState, history) _ = candidate
-                                                  progressAtStart = argminIndex (distance (position seedState)) waypoints
-                                                  progressAtEnd  = argminIndex (distance (position carState)) waypoints
-                                                  waypoints = pointsAlong course
-                                                  argminIndex score elements = fromMaybe 0 $ findIndex (== (argmin score elements)) elements
-                                                  maxV = maximum $ map vnorm (velocity seedState : (velocity carState : (map (velocity . snd) history)))
-                                                  crossesStartLine = fromIntegral (abs progressAtStart - progressAtEnd) > (maxV * (fromIntegral $ length history))
+goingBackwards course seedState candidate = dot forwardsAtCar (velocity carState) < 0
+    where InfiniTree (carState, history) _ = candidate
+          forwardsDirectionWaypoints = makeSegments $ pointsAlong course
+          closestWaypoint = argmin distanceFromCar forwardsDirectionWaypoints
+          distanceFromCar (Segment start end) = distance (position carState) start
+          forwardsAtCar = segmentToVector closestWaypoint
 
 -- top-level algorithm
 searchDepth = 5
