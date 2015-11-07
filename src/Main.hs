@@ -36,6 +36,7 @@ thecourse = makeCourse [
   (Point 8 26),
   (Point 0 18),
   (Point 0 8),
+  (Point 7 0),
   (Point 8 0)]
   []
 hardCodedConfig = GameConfig thecourse
@@ -48,7 +49,7 @@ top = do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
   lift render
-  untilM (runReaderT (gameLoop w rows) hardCodedConfig) (over (getCourse hardCodedConfig)) >> showEndState w (getCourse hardCodedConfig) >> showMessage w
+  untilM (runReaderT (gameLoop w rows) hardCodedConfig) (over (getCourse hardCodedConfig)) >> showEndState w (getCourse hardCodedConfig) >> gameOverMessage w (getCourse hardCodedConfig)
 
 drawCourse course state w = do
   updateWindow w $ do
@@ -61,15 +62,29 @@ showEndState w course = do
   endstate <- get
   lift $ drawCourse course endstate w
 
-showMessage w = do
+gameOverMessage w course = do
   sad <- lift $ newWindow 10 50 10 10
   lift $ updateWindow sad $ do
       moveCursor 0 0
-      drawString $ "GAME OVER"
+      drawString $ "GAME OVER\n"
+  endState <- get
+  let humanFinished = (humanWon course endState)
+      aiFinished = (aiWon course endState)
+      tie = humanFinished && aiFinished
+      humanVictory = humanFinished && not aiFinished
+      aiVictory = aiFinished && not humanFinished
+  when humanVictory $ lift $ updateWindow sad $ do
+    drawString "YOU BEAT THE COMPUTER!!!\n"
+  when aiVictory $ lift $ updateWindow sad $ do
+    drawString "YOU LOST.  TO A ROBOT\n"
+  when tie $ lift $ updateWindow sad $ do
+    drawString "A TIE? IMPOSSIBLE!\n"
+  when (hitsCourse (lastSegmentTravelled (humanState endState)) course) $ lift $ updateWindow sad $ do
+    drawString "YOU CRASHED, IDIOT\n"
   lift render
   lift $ getEvent sad $ Just 3000
   lift $ updateWindow sad $ do
-      moveCursor 1 0
+      moveCursor 4 0
       drawString $ "ENTER TO QUIT"
   lift render
   lift $ awaitEnter w
@@ -80,10 +95,14 @@ awaitEnter w = untilM render $ do
 
 over course = do
   gamestate <- get
-  return $ (quitted gamestate) || hitsCourse (lastSegmentTravelled (humanState gamestate)) course || playerWon course (aiState gamestate) || playerWon course (humanState gamestate)
+  return $ (quitted gamestate) || hitsCourse (lastSegmentTravelled (humanState gamestate)) course || someoneWon course gamestate
 
 playerWon course playerState = totalProgress >= (length $ pointsAlong course)
                                where totalProgress = progress course (positionHistory playerState)
+
+someoneWon course gameState =playerWon course (aiState gameState) || playerWon course (humanState gameState)
+aiWon course gameState = playerWon course (aiState gameState)
+humanWon course gameState = playerWon course (humanState gameState)
 
 makeCID Dust = newColorID ColorYellow ColorBlack 1
 makeCID Car = newColorID ColorCyan ColorBlack 3
@@ -91,7 +110,8 @@ makeCID Earth = newColorID ColorGreen ColorGreen 4
 makeCID Wall = newColorID ColorYellow ColorBlack 5
 makeCID Opponent = newColorID ColorRed ColorBlack 6
 makeCID Road = newColorID ColorBlack ColorBlack 7
-textColor = newColorID ColorBlack ColorWhite 8
+makeCID Finish = newColorID ColorBlue ColorBlue 8
+textColor = newColorID ColorBlack ColorWhite 9
 
 drawColorfulString w string color = do
    cid <- makeCID color --newColorID ColorBlue ColorGreen 1

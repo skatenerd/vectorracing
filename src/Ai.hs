@@ -72,10 +72,6 @@ progress course pastPositions = let triplines = concat $ replicate 2 (progressMa
 progressMarkers course = let lrps = getLeftrightPairs course
                          in map (uncurry Segment) lrps
 
-indexOfLastElement elements predicate = let maybeDistanceFromEnd = ((flip findIndex) . reverse) elements predicate
-                                            distanceFromEnd = fromMaybe (length elements) maybeDistanceFromEnd
-                                        in (length elements) - distanceFromEnd
-
 carHasCrossed history segment = let segmentHistory = makeSegments history
                                 in any (segmentIntersectsGenerous segment) segmentHistory
 
@@ -91,7 +87,7 @@ collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
 -- Can I stop in time to not crash?
 willCrash course node = let  InfiniTree (state, _) _ = node
                              projectedState = coast state
-                             projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) (vnorm (velocity state))
+                             projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) ((vnorm (velocity state)) / 2)
                              (leftBoundaries, rightBoundaries) = getBoundaries course
                          in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
 

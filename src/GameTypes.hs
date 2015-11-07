@@ -2,7 +2,7 @@ module GameTypes where
 
 import Geometry
 
-data GameColors = Dust | Car | Earth | Wall | Road | Opponent deriving (Show, Eq)
+data GameColors = Dust | Car | Earth | Wall | Road | Opponent | Finish deriving (Show, Eq)
 
 data CarState = CarState { positionHistory :: [Point] } deriving (Show)
 data GameState = GameState { humanState :: CarState, aiState :: CarState, quitted :: Bool} deriving (Show)

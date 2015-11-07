@@ -46,11 +46,18 @@ placeRoad x y gameState course = if closeToCourse && (onRoad thePoint course)
                                      where thePoint = ((Point `on` fromIntegral) x y)
                                            closeToCourse = distanceToCourse thePoint course <= courseWidth
 
+placeFinish x y gameState course = if closeToFinish
+                                   then Just ('F', Finish)
+                                   else Nothing
+                                     where thePoint = ((Point `on` fromIntegral) x y)
+                                           closeToFinish = distanceToSegment thePoint finishSegment < 0.5
+                                           finishSegment = (uncurry Segment) (last (getLeftrightPairs course))
 
 
 renderSquare :: Integer -> Integer -> GameState -> Course -> (Char, GameColors)
 renderSquare x y gameState course = fromMaybe ('D', Dust) $ foldl maybeOr Nothing [placeCar x y gameState course,
                                                                                    placeAI x y gameState course,
+                                                                                   placeFinish x y gameState course,
                                                                                    placeWhoosh x y gameState course,
                                                                                    placeWall x y gameState course,
                                                                                    placeRoad x y gameState course,

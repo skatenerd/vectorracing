@@ -10,12 +10,6 @@ computeBoundaries path = let leftrightpairs = computeLeftrightPairs path
                              (lefts, rights) = unzip leftrightpairs
                          in (makeSegments lefts, makeSegments rights)
 
-
-glrp segment point = let normal = unitNormal segment
-                         scaled = scale normal courseWidth
-                         inverted = scale scaled (-1)
-                     in (translate point inverted, translate point scaled)
-
 courseWidth = 5
 
 
@@ -23,9 +17,12 @@ pointsAlong course = concatMap segmentPoints (makeSegments (path course))
 
 makeSegments points = zipWith Segment points (tail points)
 
-computeLeftrightPairs path = concatMap glrps (makeSegments path)
-  where glrps :: Segment -> [(Point, Point)]
-        glrps segment = fmap (glrp segment) (segmentPoints segment)
+computeLeftrightPairs path = concatMap pairsForSegment (makeSegments path)
+  where pairsForSegment segment = fmap (makeLeftRightPair segment) (segmentPoints segment)
+        makeLeftRightPair segment point = let normal = unitNormal segment
+                                              scaled = scale normal courseWidth
+                                              inverted = scale scaled (-1)
+                                          in (translate point inverted, translate point scaled)
 
 distanceToCourse p course = let (lb, rb) = getBoundaries course
                             in min (distanceToPolyline p lb) (distanceToPolyline p rb)
