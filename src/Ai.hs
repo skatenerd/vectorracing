@@ -21,21 +21,27 @@ getMove course carState = extractMove $ bestFutureState course carState
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
--- this is a pretty clownshoes function...
-goingBackwards course seedState candidate = dot forwardsAtCar (velocity carState) < 0
-    where InfiniTree (carState, history) _ = candidate
-          forwardsDirectionWaypoints = makeSegments $ pointsAlong course
-          closestWaypoint = argmin distanceFromCar forwardsDirectionWaypoints
-          distanceFromCar (Segment start end) = distance (position carState) start
-          forwardsAtCar = segmentToVector closestWaypoint
-
 -- top-level algorithm
 searchDepth = 5
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
-                               where pruner node = let InfiniTree (carState, history) _ = node
-                                                   in if (map fst history) == [RRight, RRight, RRight]
-                                                      then not ((willCrash course node) || (goingBackwards course state node))
-                                                      else not ((willCrash course node) || (goingBackwards course state node))
+  where pruner node = let InfiniTree (carState, history) _ = node
+                      in if (map fst history) == [RRight, RRight, RRight]
+                         then not ((willCrash node) || (goingBackwards state node))
+                         else not ((willCrash node) || (goingBackwards state node))
+        goingBackwards seedState candidate = dot forwardsAtCar (velocity carState) < 0
+            where InfiniTree (carState, history) _ = candidate
+                  forwardsDirectionWaypoints = makeSegments $ pointsAlong course
+                  closestWaypoint = argmin distanceFromCar forwardsDirectionWaypoints
+                  distanceFromCar (Segment start end) = distance (position carState) start
+                  forwardsAtCar = segmentToVector closestWaypoint
+        -- Can I stop in time to not crash?
+        willCrash node = let  InfiniTree (state, _) _ = node
+                              projectedState = coast state
+                              projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) ((vnorm (velocity state)) / 2)
+                              (leftBoundaries, rightBoundaries) = getBoundaries course
+                          in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
+
+
 
 safeArgmax predicate items = (catchNull $ argmax predicate) items
 
@@ -79,11 +85,4 @@ collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
                                  then False
                                  else collision
 
-
--- Can I stop in time to not crash?
-willCrash course node = let  InfiniTree (state, _) _ = node
-                             projectedState = coast state
-                             projectedSegment = scaleSegment (Segment (priorPosition projectedState) (position projectedState)) ((vnorm (velocity state)) / 2)
-                             (leftBoundaries, rightBoundaries) = getBoundaries course
-                         in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
 
