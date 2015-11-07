@@ -54,17 +54,28 @@ placeFinish x y gameState course = if closeToFinish
                                            finishSegment = (uncurry Segment) (last (getLeftrightPairs course))
 
 
-renderSquare :: Integer -> Integer -> GameState -> Course -> (Char, GameColors)
-renderSquare x y gameState course = fromMaybe ('D', Dust) $ foldl maybeOr Nothing [placeCar x y gameState course,
-                                                                                   placeAI x y gameState course,
-                                                                                   placeFinish x y gameState course,
-                                                                                   placeWhoosh x y gameState course,
-                                                                                   placeWall x y gameState course,
-                                                                                   placeRoad x y gameState course,
-                                                                                   placeEarth x y gameState course]
 
-renderRow :: Integer -> GameState -> Course -> [(Char, GameColors)]
-renderRow y state course = [renderSquare x y state course | x <- [(minX course)..(maxX course)]]
+renderManySquares :: [(Integer, Integer)] -> GameState -> Course -> (Char, GameColors)
+renderManySquares squares gameState course = fromMaybe ('D', Dust) possibleAnswer
+  where possibleAnswer :: Maybe (Char, GameColors)
+        possibleAnswer = foldl maybeOr Nothing tries
+        tries :: [Maybe (Char, GameColors)]
+        tries = map tryForSquare squares
+        tryForSquare :: (Integer, Integer) -> Maybe (Char, GameColors)
+        tryForSquare (x, y) = maybeRenderSquare gameState course (x,y)
+
+
+maybeRenderSquare gameState course (x, y) = foldl maybeOr Nothing [placeCar x y gameState course,
+                                                                   placeAI x y gameState course,
+                                                                   placeFinish x y gameState course,
+                                                                   placeWhoosh x y gameState course,
+                                                                   placeWall x y gameState course,
+                                                                   placeRoad x y gameState course,
+                                                                   placeEarth x y gameState course]
+
+
+-- https://gist.github.com/skatenerd/767e2042f388bde63779
+nestedMap = map . map
 
 renderPadding = 1
 minX course = floor (minimum $ map pX (allBoundaryPoints course)) - renderPadding
@@ -77,5 +88,8 @@ allBoundaryPoints course = uncurry (++) (unzip (getLeftrightPairs course))
 render :: GameState -> Course -> [(Char, GameColors)]
 render state course = intercalate [('\n', Dust)] rows
                       where rows :: [[(Char, GameColors)]]
-                            rows = [renderRow y state course | y <- [maxY course, maxY course - 1 .. minY course]]
+                            rows = nestedMap renderSquare cells--[renderRow y state course | y <- [maxY course, maxY course - 1 .. minY course]]
+                            cells :: [[(Integer, Integer)]]
+                            cells = [zip [(minX course)..(maxX course)] (repeat y) | y <- [maxY course, maxY course - 1 .. minY course]]
+                            renderSquare = fromMaybe ('D', Dust) . maybeRenderSquare state course
 

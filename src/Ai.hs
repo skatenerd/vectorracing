@@ -52,9 +52,8 @@ bestNodeAtDepth depth score prune (InfiniTree value children) = let searchableCh
                                                                 in  fromMaybe Nothing winner
 
 -- if we are going to traverse a tree, first we have to build it
-
 makeFutureTree state pathToHere = InfiniTree (state, pathToHere) (theSubtrees state pathToHere)
-theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)])
+theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)]) -- gross.  history should get simplified to not be a tuple.
                                in map makeForDirection [Up, Down, LLeft, RRight]
 
 
