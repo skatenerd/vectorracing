@@ -54,6 +54,7 @@ top = do
 drawCourse course state w = do
   updateWindow w $ do
     moveCursor 0 0
+  --let clumped = group (R.renderInto state course 25 43)
   let clumped = group (R.render state course)
   forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
   render

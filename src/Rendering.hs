@@ -1,4 +1,4 @@
-module Rendering (render) where
+module Rendering (render, renderInto) where
 
 import Geometry
 import Car
@@ -55,8 +55,8 @@ placeFinish x y gameState course = if closeToFinish
 
 
 
-renderManySquares :: [(Integer, Integer)] -> GameState -> Course -> (Char, GameColors)
-renderManySquares squares gameState course = fromMaybe ('D', Dust) possibleAnswer
+--renderManySquares :: [(Integer, Integer)] -> GameState -> Course -> (Char, GameColors)
+renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswer
   where possibleAnswer :: Maybe (Char, GameColors)
         possibleAnswer = foldl maybeOr Nothing tries
         tries :: [Maybe (Char, GameColors)]
@@ -93,3 +93,20 @@ render state course = intercalate [('\n', Dust)] rows
                             cells = [zip [(minX course)..(maxX course)] (repeat y) | y <- [maxY course, maxY course - 1 .. minY course]]
                             renderSquare = fromMaybe ('D', Dust) . maybeRenderSquare state course
 
+
+renderInto :: GameState -> Course -> Integer -> Integer -> [(Char, GameColors)]
+renderInto state course width height =
+
+                      intercalate [('\n', Dust)] rows
+                      where rows :: [[(Char, GameColors)]]
+                            rows = nestedMap (renderManySquares state course) cells--[renderRow y state course | y <- [maxY course, maxY course - 1 .. minY course]]
+                            cells :: [[[(Integer, Integer)]]]
+                            cells = nestedMap projectionForCell smallWorldCells
+                            smallWorldCells = [zip [0..(width - 1)] (repeat y) | y <- [height, height - 1 .. 0]]
+                            projectionForCell (x, y) = [(projectedX, projectedY) | projectedX <- (getXs x), projectedY <- (getYs y)]
+                            courseHeight = fromIntegral $ (maxY course) - (minY course) - 1
+                            courseWidth = fromIntegral $ (maxX course) - (minX course) - 1
+                            xRatio = ceiling $ (courseWidth / (fromIntegral width))
+                            yRatio = ceiling $ (courseHeight / (fromIntegral height))
+                            getXs x = map (+ (minX course)) [(xRatio * x) .. (xRatio * x) + (xRatio - 1)]
+                            getYs y = map (+ (minY course)) [(yRatio * y) .. (yRatio * y) + (yRatio - 1)]
