@@ -2,25 +2,15 @@
 module Main where
 
 import UI.NCurses
-import Data.Maybe
-import Control.Monad
 import Control.Monad.State
-import System.Posix.Unistd
 import GameTypes
-import Geometry
-import qualified Rendering as R
 import Car
 import Ai
-import Course
 import Configs
 import CursesWrappers
 import Scoring
 
 import Control.Monad.Loops
-import Control.Monad.Reader
-import Data.List
-import Data.Function
-
 
 main :: IO ()
 main = void $ runCurses $ top

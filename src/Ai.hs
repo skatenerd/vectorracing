@@ -2,16 +2,13 @@ module Ai(getMove, progress) where
 
 import Course
 import GameTypes
-import Debug.Trace
 import Geometry
 import Car
-import Course
 import Scoring
 
 import Data.Maybe
-import Data.List
 import Data.List.Extras
-import Control.Applicative
+
 -- API
 getMove course carState = extractMove $ bestFutureState course carState
                           where extractMove (Just node) = let InfiniTree (_, history) _ = node
@@ -27,9 +24,7 @@ data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } 
 searchDepth = 5
 bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
   where pruner node = let InfiniTree (carState, history) _ = node
-                      in if (map fst history) == [RRight, RRight, RRight]
-                         then not ((willCrash node) || (goingBackwards state node))
-                         else not ((willCrash node) || (goingBackwards state node))
+                      in not ((willCrash node) || (goingBackwards state node))
         goingBackwards seedState candidate = dot forwardsAtCar (velocity carState) < 0
             where InfiniTree (carState, history) _ = candidate
                   forwardsDirectionWaypoints = makeSegments $ pointsAlong course
@@ -44,18 +39,19 @@ bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) p
                           in (hitsPolyline projectedSegment leftBoundaries) || (hitsPolyline projectedSegment rightBoundaries)
 
 
-
-safeArgmax predicate items = (catchNull $ argmax predicate) items
-
+-- the top-level algorithm says we should search the tree.  How do we search the tree? we recursively...look at it.
 bestNodeAtDepth 0 _ _ node = return node
 bestNodeAtDepth depth score prune (InfiniTree value children) = let searchableChildren = (filter prune children)
                                                                     bestNodesUnderChildren = (map (bestNodeAtDepth (depth - 1) score prune) searchableChildren)
                                                                     winner = safeArgmax score bestNodesUnderChildren
+                                                                    safeArgmax predicate items = (catchNull $ argmax predicate) items
                                                                 in  fromMaybe Nothing winner
 
 -- if we are going to traverse a tree, first we have to build it
+-- the data structure is a little gross.  history should get simplified to not be a tuple.
+-- perhaps we should absorb the "history" into the "history" concept residing on CarState...
 makeFutureTree state pathToHere = InfiniTree (state, pathToHere) (theSubtrees state pathToHere)
-theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)]) -- gross.  history should get simplified to not be a tuple.
+theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarTurn state d) (pathToHere ++ [(d, state)])
                                in map makeForDirection [Up, Down, LLeft, RRight]
 
 

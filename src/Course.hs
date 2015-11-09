@@ -2,7 +2,6 @@ module Course (makeCourse, makeSegments, distanceToCourse, pointsAlong, onRoad, 
 
 import Geometry
 import GameTypes
-import Data.List.Extras
 
 makeCourse path obstacles = Course { path = path, obstacles = obstacles, getBoundaries = computeBoundaries path, getLeftrightPairs = computeLeftrightPairs path }
 

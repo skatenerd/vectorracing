@@ -2,7 +2,6 @@ module Car where
 
 import GameTypes
 import Geometry
-import Course
 
 lastSegmentTravelled carState = makeSegment (position carState) (priorPosition carState)
 

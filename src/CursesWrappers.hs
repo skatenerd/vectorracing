@@ -6,10 +6,8 @@ import UI.NCurses
 import Control.Monad.State
 import Control.Monad.Loops
 import qualified Rendering as R
-import Control.Monad
 import GameTypes
 import Configs
-import Course
 import Car
 import Scoring
 
