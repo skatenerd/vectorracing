@@ -64,13 +64,9 @@ top = do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
   render
-  --untilM (runStateT (gameLoop w rows course) startState) (over course) >>
-  --  showEndState w course >>
-  --    gameOverMessage w course
   (runStateT ((untilM (gameLoop w rows course) (over course)) >> (showEndState w course) >> (gameOverMessage w course))
     startState)
-  --  showEndState w course >>
-  --    gameOverMessage w course
+
 thumbnailWidth = 30
 thumbnailHeight = 20
 thumbnailBuffer = 3
