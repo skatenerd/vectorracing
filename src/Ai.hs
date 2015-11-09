@@ -5,6 +5,8 @@ import GameTypes
 import Debug.Trace
 import Geometry
 import Car
+import Course
+import Scoring
 
 import Data.Maybe
 import Data.List
@@ -58,30 +60,7 @@ theSubtrees state pathToHere = let makeForDirection d = makeFutureTree (takeCarT
 
 
 -- also, we need our scoring function
-
-
 scoreState course Nothing = 0
 scoreState course (Just node) = let InfiniTree (state, howigothere) _ = node
                                     barsCrossed = progress course ((map (position . snd) howigothere) ++ [position state])
                                 in barsCrossed
-
-
-progress course pastPositions = let triplines = concat $ replicate 2 (progressMarkers course)
-                                    freshCourse = dropWhile (not . (carHasCrossed pastPositions)) triplines
-                                in length $ takeWhile (carHasCrossed pastPositions) freshCourse
-
-progressMarkers course = let lrps = getLeftrightPairs course
-                         in map (uncurry Segment) lrps
-
-carHasCrossed history segment = let segmentHistory = makeSegments history
-                                in any (segmentIntersectsGenerous segment) segmentHistory
-
--- finally, a utility for pruning the tree
-collidesWithCourse course node = let InfiniTree (_, howigothere) _ = node
-                                     mypath = makeSegments $ map (position . snd) howigothere
-                                     collision = hitsCourse (last mypath) course
-                                 in if null mypath
-                                 then False
-                                 else collision
-
-

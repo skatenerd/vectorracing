@@ -1,4 +1,4 @@
-module Course (makeCourse, makeSegments, distanceToCourse, pointsAlong, onRoad, courseWidth) where
+module Course (makeCourse, makeSegments, distanceToCourse, pointsAlong, onRoad, roadWidth) where
 
 import Geometry
 import GameTypes
@@ -10,7 +10,7 @@ computeBoundaries path = let leftrightpairs = computeLeftrightPairs path
                              (lefts, rights) = unzip leftrightpairs
                          in (makeSegments lefts, makeSegments rights)
 
-courseWidth = 5
+roadWidth = 5
 
 
 pointsAlong course = concatMap segmentPoints (makeSegments (path course))
@@ -20,7 +20,7 @@ makeSegments points = zipWith Segment points (tail points)
 computeLeftrightPairs path = concatMap pairsForSegment (makeSegments path)
   where pairsForSegment segment = fmap (makeLeftRightPair segment) (segmentPoints segment)
         makeLeftRightPair segment point = let normal = unitNormal segment
-                                              scaled = scale normal courseWidth
+                                              scaled = scale normal roadWidth
                                               inverted = scale scaled (-1)
                                           in (translate point inverted, translate point scaled)
 

@@ -44,7 +44,7 @@ placeRoad x y gameState course = if closeToCourse && (onRoad thePoint course)
                                    then Just ('R', Road)
                                    else Nothing
                                      where thePoint = ((Point `on` fromIntegral) x y)
-                                           closeToCourse = distanceToCourse thePoint course <= courseWidth
+                                           closeToCourse = distanceToCourse thePoint course <= roadWidth
 
 placeFinish x y gameState course = if closeToFinish
                                    then Just ('F', Finish)
@@ -53,9 +53,6 @@ placeFinish x y gameState course = if closeToFinish
                                            closeToFinish = distanceToSegment thePoint finishSegment < 0.5
                                            finishSegment = (uncurry Segment) (last (getLeftrightPairs course))
 
-
-
---renderManySquares :: [(Integer, Integer)] -> GameState -> Course -> (Char, GameColors)
 renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswer
   where possibleAnswer :: Maybe (Char, GameColors)
         possibleAnswer = foldl maybeOr Nothing tries
@@ -64,7 +61,6 @@ renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswe
         tryForSquare :: (Integer, Integer) -> Maybe (Char, GameColors)
         tryForSquare (x, y) = maybeRenderSquare gameState course (x,y)
 
-
 maybeRenderSquare gameState course (x, y) = foldl maybeOr Nothing [placeCar x y gameState course,
                                                                    placeAI x y gameState course,
                                                                    placeFinish x y gameState course,
@@ -72,7 +68,6 @@ maybeRenderSquare gameState course (x, y) = foldl maybeOr Nothing [placeCar x y 
                                                                    placeWall x y gameState course,
                                                                    placeRoad x y gameState course,
                                                                    placeEarth x y gameState course]
-
 
 -- https://gist.github.com/skatenerd/767e2042f388bde63779
 nestedMap = map . map
@@ -85,14 +80,11 @@ maxY course = ceiling (maximum $ map pY (allBoundaryPoints course)) + renderPadd
 
 allBoundaryPoints course = uncurry (++) (unzip (getLeftrightPairs course))
 
-render :: GameState -> Course -> [(Char, GameColors)]
-render state course = intercalate [('\n', Dust)] rows
-                      where rows :: [[(Char, GameColors)]]
-                            rows = nestedMap renderSquare cells--[renderRow y state course | y <- [maxY course, maxY course - 1 .. minY course]]
-                            cells :: [[(Integer, Integer)]]
-                            cells = [zip [(minX course)..(maxX course)] (repeat y) | y <- [maxY course, maxY course - 1 .. minY course]]
-                            renderSquare = fromMaybe ('D', Dust) . maybeRenderSquare state course
+courseWidth course = fromIntegral $ (maxX course) - (minX course) - 1
+courseHeight course = fromIntegral $ (maxY course) - (minY course) - 1
 
+render :: GameState -> Course -> [(Char, GameColors)]
+render state course = renderInto state course (courseWidth course) (courseHeight course)
 
 renderInto :: GameState -> Course -> Integer -> Integer -> [(Char, GameColors)]
 renderInto state course width height =
@@ -104,9 +96,7 @@ renderInto state course width height =
                             cells = nestedMap projectionForCell smallWorldCells
                             smallWorldCells = [zip [0..(width - 1)] (repeat y) | y <- [height, height - 1 .. 0]]
                             projectionForCell (x, y) = [(projectedX, projectedY) | projectedX <- (getXs x), projectedY <- (getYs y)]
-                            courseHeight = fromIntegral $ (maxY course) - (minY course) - 1
-                            courseWidth = fromIntegral $ (maxX course) - (minX course) - 1
-                            xRatio = ceiling $ (courseWidth / (fromIntegral width))
-                            yRatio = ceiling $ (courseHeight / (fromIntegral height))
+                            xRatio = ceiling $ ((courseWidth course) / (fromIntegral width))
+                            yRatio = ceiling $ ((courseHeight course) / (fromIntegral height))
                             getXs x = map (+ (minX course)) [(xRatio * x) .. (xRatio * x) + (xRatio - 1)]
                             getYs y = map (+ (minY course)) [(yRatio * y) .. (yRatio * y) + (yRatio - 1)]
