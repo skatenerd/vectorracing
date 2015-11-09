@@ -96,6 +96,8 @@ drawThumbnails startHeight = forM (zip [0..] configs) drawThumbnail
 
 data UserSelectCommand = SelectToLeft | SelectToRight | FinalizeSelection
 getCourseSelection w courseIndex startHeight = do
+  -- this garbage (repeated draw-and-render calls) is because I can't figure out the ncurses library
+  -- if I don't spam all of these calls, various UI eleents do not appear
   drawArrow w courseIndex startHeight
   render
   drawThumbnails startHeight
