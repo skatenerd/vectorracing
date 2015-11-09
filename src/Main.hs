@@ -19,15 +19,13 @@ import Control.Monad.Reader
 import Data.List
 import Data.Function
 
-data GameConfig = GameConfig { getCourse :: Course }
+data GameConfig = GameConfig { getCourse :: Course, getStartAIState :: CarState, getStartCarState :: CarState }
 
 main :: IO ()
-main = runCurses $ void (runStateT top startGameState)
+main = void $ runCurses $ top
 
-startCarState = CarState [Point 8 (-2), Point 8 (-2)]
-startAIState = CarState [Point 7 2, Point 7 2]
-startGameState = GameState {humanState = startCarState, aiState = startAIState, quitted = False}
-thecourse = makeCourse [
+--startGameState = GameState {humanState = startCarState, aiState = startAIState, quitted = False}
+roundCourse = GameConfig { getCourse = makeCourse [
   (Point 8 0),
   (Point 38 0),
   (Point 46 8),
@@ -38,33 +36,41 @@ thecourse = makeCourse [
   (Point 0 8),
   (Point 7 0),
   (Point 8 0)]
-  []
+  [],
+  getStartCarState = CarState [Point 8 (-2), Point 8 (-2)],
+  getStartAIState = CarState [Point 7 2, Point 7 2] }
 
-zigzag = makeCourse [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 65 12)] []
-courses = [thecourse, zigzag]
-hardCodedConfig = GameConfig thecourse
+zigzagCourse = GameConfig { getCourse = makeCourse [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 65 12)] [],
+                            getStartCarState = CarState [Point (-11) (-11), Point (-11) (-11)],
+                            getStartAIState = CarState [Point (-12) (-12), Point (-12) (-12)] }
+
+configs = [roundCourse, zigzagCourse]
 
 top = do
-  lift $ setEcho False
-  w <- lift defaultWindow
-  lift $ updateWindow w $ do
+  setEcho False
+  w <- defaultWindow
+  updateWindow w $ do
     drawString "Choose a course!"
-  lift $ render
-  courseSelectWindow <- lift $ newWindow thumbnailHeight thumbnailWidth 0 0
+  render
+  courseSelectWindow <- newWindow thumbnailHeight thumbnailWidth 0 0 -- this could get pushed down into getCourseSelection
   let startHeight = 3
-  courseIndex <- lift $ getCourseSelection courseSelectWindow 0 startHeight
-  lift $ closeWindow courseSelectWindow
-  let course = courses !! (fromIntegral courseIndex)
-      config = GameConfig { getCourse = course }
-  (rows, cols) <- lift screenSize
-  lift $ updateWindow w $ do
+  configIndex <- getCourseSelection courseSelectWindow 0 startHeight
+  closeWindow courseSelectWindow
+  let config = configs !! (fromIntegral configIndex)
+      startState = startStateFromConfig config
+      course = getCourse config
+  (rows, cols) <- screenSize
+  updateWindow w $ do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
-  lift render
-  untilM (runReaderT (gameLoop w rows) config) (over (getCourse config)) >>
-    showEndState w (getCourse config) >>
-      gameOverMessage w (getCourse config)
-
+  render
+  --untilM (runStateT (gameLoop w rows course) startState) (over course) >>
+  --  showEndState w course >>
+  --    gameOverMessage w course
+  (runStateT ((untilM (gameLoop w rows course) (over course)) >> (showEndState w course) >> (gameOverMessage w course))
+    startState)
+  --  showEndState w course >>
+  --    gameOverMessage w course
 thumbnailWidth = 30
 thumbnailHeight = 20
 thumbnailBuffer = 3
@@ -84,9 +90,11 @@ drawArrow canvas courseIndex startHeight = do
     setColor cid
     drawString $ arrowString
 
-drawThumbnails startHeight = forM (zip [0..] courses) drawThumbnail
-  where drawThumbnail (courseIndex, course) = do window <- newWindow 50 50 startHeight (courseIndex * thumbnailOuterSize)
-                                                 condenseAndDraw  (R.renderInto startGameState course thumbnailWidth thumbnailHeight) window
+startStateFromConfig config = GameState { quitted = False, humanState = (getStartCarState config), aiState = (getStartAIState config) }
+
+drawThumbnails startHeight = forM (zip [0..] configs) drawThumbnail
+  where drawThumbnail (courseIndex, config) = do window <- newWindow 50 50 startHeight (courseIndex * thumbnailOuterSize)
+                                                 condenseAndDraw  (R.renderInto (startStateFromConfig config) (getCourse config) thumbnailWidth thumbnailHeight) window
                                                  closeWindow window
 
 
@@ -100,9 +108,9 @@ getCourseSelection w courseIndex startHeight = do
   render
   courseAction <- awaitCourseSelectCommand w
   case courseAction of
-    SelectToLeft -> getCourseSelection w (mod (courseIndex + 1) (fromIntegral $ length courses)) startHeight
-    SelectToRight -> getCourseSelection w (mod (courseIndex - 1) (fromIntegral $ length courses)) startHeight
-    FinalizeSelection-> return (mod courseIndex (fromIntegral (length courses)))
+    SelectToLeft -> getCourseSelection w (mod (courseIndex + 1) (fromIntegral $ length configs)) startHeight
+    SelectToRight -> getCourseSelection w (mod (courseIndex - 1) (fromIntegral $ length configs)) startHeight
+    FinalizeSelection-> return (mod courseIndex (fromIntegral (length configs)))
 
 awaitCourseSelectCommand w = untilJust getInput
   where inputToCommand (Just (EventSpecialKey KeyEnter)) = Just FinalizeSelection
@@ -188,17 +196,16 @@ condenseAndDraw colorfulString w = do
   let clumped = group (colorfulString)
   forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
 
-gameLoop w rows = do
-  course <- asks getCourse
+gameLoop w rows course = do
   oldstate <- get
-  lift $ lift $ drawCourse course oldstate w
-  c <- lift $ lift $ getCharInput w
+  lift $ drawCourse course oldstate w
+  c <- lift $ getCharInput w
   case c of
       Quit -> do
         oldstate <- get
         put oldstate {quitted = True}
       MoveDirection d -> do
-        lift $ lift $ do
+        lift $ do
           cid <- textColor
           updateWindow w $ do
             setColor cid
