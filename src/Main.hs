@@ -39,24 +39,88 @@ thecourse = makeCourse [
   (Point 7 0),
   (Point 8 0)]
   []
+
+zigzag = makeCourse [(Point (-10) (-10)), (Point 0 0), (Point 10 2), (Point 35 (-5)), (Point 65 12)] []
+courses = [thecourse, zigzag]
 hardCodedConfig = GameConfig thecourse
 
 top = do
   lift $ setEcho False
   w <- lift defaultWindow
+  lift $ updateWindow w $ do
+    drawString "Choose a course!"
+  lift $ render
+  courseSelectWindow <- lift $ newWindow thumbnailHeight thumbnailWidth 0 0
+  let startHeight = 3
+  courseIndex <- lift $ getCourseSelection courseSelectWindow 0 startHeight
+  lift $ closeWindow courseSelectWindow
+  let course = courses !! (fromIntegral courseIndex)
+      config = GameConfig { getCourse = course }
   (rows, cols) <- lift screenSize
   lift $ updateWindow w $ do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
   lift render
-  untilM (runReaderT (gameLoop w rows) hardCodedConfig) (over (getCourse hardCodedConfig)) >> showEndState w (getCourse hardCodedConfig) >> gameOverMessage w (getCourse hardCodedConfig)
+  untilM (runReaderT (gameLoop w rows) config) (over (getCourse config)) >>
+    showEndState w (getCourse config) >>
+      gameOverMessage w (getCourse config)
+
+thumbnailWidth = 30
+thumbnailHeight = 20
+thumbnailBuffer = 3
+thumbnailOuterSize = thumbnailWidth + thumbnailBuffer
+arrowString=
+  "/\\\n\
+  \||\n\
+  \||\n\
+  \||\n\
+  \||\n"
+
+drawArrow canvas courseIndex startHeight = do
+  cid <- textColor
+  updateWindow canvas $ do
+    moveWindow (thumbnailHeight + 2 + startHeight) (courseIndex * thumbnailOuterSize)
+    moveCursor 0 0
+    setColor cid
+    drawString $ arrowString
+
+drawThumbnails startHeight = forM (zip [0..] courses) drawThumbnail
+  where drawThumbnail (courseIndex, course) = do window <- newWindow 50 50 startHeight (courseIndex * thumbnailOuterSize)
+                                                 condenseAndDraw  (R.renderInto startGameState course thumbnailWidth thumbnailHeight) window
+                                                 closeWindow window
+
+
+data UserSelectCommand = SelectToLeft | SelectToRight | FinalizeSelection
+getCourseSelection w courseIndex startHeight = do
+  drawArrow w courseIndex startHeight
+  render
+  drawThumbnails startHeight
+  render
+  drawArrow w courseIndex startHeight
+  render
+  courseAction <- awaitCourseSelectCommand w
+  case courseAction of
+    SelectToLeft -> getCourseSelection w (mod (courseIndex + 1) (fromIntegral $ length courses)) startHeight
+    SelectToRight -> getCourseSelection w (mod (courseIndex - 1) (fromIntegral $ length courses)) startHeight
+    FinalizeSelection-> return (mod courseIndex (fromIntegral (length courses)))
+
+awaitCourseSelectCommand w = untilJust getInput
+  where inputToCommand (Just (EventSpecialKey KeyEnter)) = Just FinalizeSelection
+        inputToCommand (Just (EventCharacter '\n')) = Just FinalizeSelection
+        inputToCommand (Just (EventSpecialKey KeyRightArrow)) = Just SelectToRight
+        inputToCommand (Just (EventSpecialKey KeyLeftArrow)) = Just SelectToLeft
+        inputToCommand _ = Nothing
+        getInput = do
+          input <- getEvent w Nothing
+          return $ inputToCommand input
+
 
 drawCourse course state w = do
   updateWindow w $ do
     moveCursor 0 0
-  --let clumped = group (R.renderInto state course 25 43)
-  let clumped = group (R.render state course)
-  forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
+  condenseAndDraw (R.render state course) w
+  --let clumped = group (R.render state course)
+  --forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
   render
 
 showEndState w course = do
@@ -119,6 +183,10 @@ drawColorfulString w string color = do
    updateWindow w $ do
      setColor cid
      drawString string
+
+condenseAndDraw colorfulString w = do
+  let clumped = group (colorfulString)
+  forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
 
 gameLoop w rows = do
   course <- asks getCourse
