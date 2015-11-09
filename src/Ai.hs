@@ -10,19 +10,18 @@ import Data.Maybe
 import Data.List.Extras
 
 -- API
-getMove course carState = extractMove $ bestFutureState course carState
-                          where extractMove (Just node) = let InfiniTree (_, history) _ = node
-                                                              (direction, _) = head history
-                                                          in direction
-                                extractMove Nothing = Up
+getMove course carState depth = extractMove $ bestFutureState course carState depth
+                                where extractMove (Just node) = let InfiniTree (_, history) _ = node
+                                                                    (direction, _) = head history
+                                                                in direction
+                                      extractMove Nothing = Up
 
 
 -- tree-representation for reasoning-about-the-future
 data InfiniTree a = InfiniTree { getValue :: a, getChildren :: [InfiniTree a] } deriving (Show)
 
 -- top-level algorithm
-searchDepth = 5
-bestFutureState course state = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
+bestFutureState course state searchDepth = bestNodeAtDepth searchDepth (scoreState course) pruner (makeFutureTree state [])
   where pruner node = let InfiniTree (carState, history) _ = node
                       in not ((willCrash node) || (goingBackwards state node))
         goingBackwards seedState candidate = dot forwardsAtCar (velocity carState) < 0

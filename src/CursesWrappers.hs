@@ -72,37 +72,38 @@ awaitCourseSelectCommand w = untilJust getInput
           return $ inputToCommand input
 
 drawCourse course state w = do
+  (rows, cols) <- screenSize
   updateWindow w $ do
     moveCursor 0 0
-  condenseAndDraw (R.render state course) w
+  condenseAndDraw (R.renderInto state course (min (cols - 3) 60) (min (rows - 3) 40)) w -- try to cram the rendering into the size of your screen
   render
 
-gameOverMessage w course = do
-  sad <- lift $ newWindow 10 50 10 10
-  lift $ updateWindow sad $ do
+gameOverMessage w course endState = do
+  sad <- newWindow 10 50 10 10
+  updateWindow sad $ do
       moveCursor 0 0
       drawString $ "GAME OVER\n"
-  endState <- get
+  --endState <- get
   let humanFinished = (humanWon course endState)
       aiFinished = (aiWon course endState)
       tie = humanFinished && aiFinished
       humanVictory = humanFinished && not aiFinished
       aiVictory = aiFinished && not humanFinished
-  when humanVictory $ lift $ updateWindow sad $ do
+  when humanVictory $ updateWindow sad $ do
     drawString "YOU BEAT THE COMPUTER!!!\n"
-  when aiVictory $ lift $ updateWindow sad $ do
+  when aiVictory $ updateWindow sad $ do
     drawString "YOU LOST.  TO A ROBOT\n"
-  when tie $ lift $ updateWindow sad $ do
+  when tie $ updateWindow sad $ do
     drawString "A TIE? IMPOSSIBLE!\n"
-  when (hitsCourse (lastSegmentTravelled (humanState endState)) course) $ lift $ updateWindow sad $ do
+  when (hitsCourse (lastSegmentTravelled (humanState endState)) course) $ updateWindow sad $ do
     drawString "YOU CRASHED, IDIOT\n"
-  lift render
-  lift $ getEvent sad $ Just 3000
-  lift $ updateWindow sad $ do
+  render
+  getEvent sad $ Just 3000
+  updateWindow sad $ do
       moveCursor 4 0
       drawString $ "ENTER TO QUIT"
-  lift render
-  lift $ awaitEnter w
+  render
+  awaitEnter w
 
 condenseAndDraw colorfulString w = do
   let clumped = group (colorfulString)
