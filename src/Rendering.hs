@@ -93,7 +93,7 @@ renderInto state course renderWidth renderHeight =
                             rows = nestedMap (renderManySquares state course) cells
                             cells :: [[[(Integer, Integer)]]]
                             cells = nestedMap projectionForCell smallWorldCells
-                            smallWorldCells = [zip [0..(renderWidth - 1)] (repeat y) | y <- [renderHeight, renderHeight - 1 .. 0]]
+                            smallWorldCells = [zip [0..(renderWidth - 1)] (repeat y) | y <- [renderHeight - 1, renderHeight - 2 .. 0]]
                             projectionForCell (x, y) = [(projectedX, projectedY) | projectedX <- (getXs x), projectedY <- (getYs y)]
                             xScale = max 1 $ (fromIntegral (courseWidth course)) / (fromIntegral renderWidth)
                             yScale =  max 1 $ (fromIntegral (courseHeight course)) / (fromIntegral renderHeight)
