@@ -13,6 +13,7 @@ import Scoring
 
 import Control.Monad.Loops
 
+
 main :: IO ()
 main = void $ runCurses $ top
 

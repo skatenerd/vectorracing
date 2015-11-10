@@ -25,7 +25,9 @@ executable vectorracing
                  text,
                  mtl,
                  split,
-                 monad-loops
+                 monad-loops,
+                 data-r-tree,
+                 QuadTree
 
 
 --executable spec

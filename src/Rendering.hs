@@ -8,6 +8,7 @@ import Data.Function
 import Data.List
 import Data.Maybe
 import Control.Monad
+import qualified Data.RTree as RT
 
 areSamePoint (x,y) p = (coerceMakePoint x y) == p
 
@@ -31,17 +32,19 @@ placeAI x y gameState course = if areSamePoint (x,y) (position $ aiState gameSta
 
 placeEarth x y gameState course = Just ('E', Earth)
 
-placeWall x y gameState course = if closeToCourse && (not (onRoad thePoint course))
+placeWall x y gameState course = if closeToWall && (not (onRoad point course))
                                    then Just ('W', Wall)
                                    else Nothing
-                                     where closeToCourse = distanceToCourse thePoint course < 2
-                                           thePoint = ((Point `on` fromIntegral) x y)
+                                     where closeToWall = distanceToClosestWallpoint < 2
+                                           distanceToClosestWallpoint = minimum $ (1/0) : map (distance point) closeWallPoints
+                                           closeWallPoints = RT.lookupRange boundingBox (getBoundaryCache course)
+                                           boundingBox = makeBoundingBox 10 point
+                                           point = coerceMakePoint x y
 
-placeRoad x y gameState course = if closeToCourse && (onRoad thePoint course)
+placeRoad x y gameState course = if (onRoad thePoint course)
                                    then Just ('R', Road)
                                    else Nothing
-                                     where thePoint = ((Point `on` fromIntegral) x y)
-                                           closeToCourse = distanceToCourse thePoint course <= roadWidth
+                                     where thePoint = coerceMakePoint x y
 
 placeFinish x y gameState course = if closeToFinish
                                    then Just ('F', Finish)

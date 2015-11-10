@@ -1,9 +1,12 @@
-module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance, closestPointOnPolyline, between, pointDifference) where
+module Geometry (Point(Point), Vector(Vector), vX, vY, pX, pY, distanceToSegment, segmentIntersects, segmentIntersectsGenerous, makeSegment, translate, Segment(Segment), segmentPoints, segmentToVector, unitNormal, scale, distanceToPolyline, hitsPolyline, scaleSegment, vnorm, dot, distance, closestPointOnPolyline, between, pointDifference, makeBoundingBox) where
 
 import Data.Maybe
 import Data.Complex
 import Data.Function
 import Data.List.Extras
+
+import qualified Data.RTree as RT
+import GHC.Float
 
 data Line = Line Point Point deriving (Show)
 -- Point should be parameterized by a numeric type
@@ -160,3 +163,8 @@ between p first second = let baseline = pointDifference second first
                              dotSmallEnough = dotted < threshold
                              threshold = squaredDistance first second
                          in dotPositive && dotSmallEnough
+
+makeBoundingBox sideLength point = RT.mbb (floatX - halfSideLength) (floatY - halfSideLength) (floatX + halfSideLength) (floatY + halfSideLength)
+  where floatX = float2Double $ pX point
+        floatY = float2Double $ pY point
+        halfSideLength = sideLength / 2
