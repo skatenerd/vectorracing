@@ -24,6 +24,7 @@ executable vectorracing
                  ncurses,
                  text,
                  mtl,
+                 split,
                  monad-loops
 
 

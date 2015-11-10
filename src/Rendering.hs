@@ -1,4 +1,4 @@
-module Rendering (render, renderInto) where
+module Rendering (render, renderInto, courseWidth, courseHeight) where
 
 import Geometry
 import Car
@@ -63,9 +63,9 @@ renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswe
 
 maybeRenderSquare gameState course (x, y) = foldl maybeOr Nothing [placeCar x y gameState course,
                                                                    placeAI x y gameState course,
-                                                                   placeFinish x y gameState course,
                                                                    placeWhoosh x y gameState course,
                                                                    placeWall x y gameState course,
+                                                                   placeFinish x y gameState course,
                                                                    placeRoad x y gameState course,
                                                                    placeEarth x y gameState course]
 
@@ -80,23 +80,23 @@ maxY course = ceiling (maximum $ map pY (allBoundaryPoints course)) + renderPadd
 
 allBoundaryPoints course = uncurry (++) (unzip (getLeftrightPairs course))
 
-courseWidth course = fromIntegral $ (maxX course) - (minX course) - 1
-courseHeight course = fromIntegral $ (maxY course) - (minY course) - 1
+courseWidth course = fromIntegral $ (maxX course) - (minX course) + 1
+courseHeight course = fromIntegral $ (maxY course) - (minY course) + 1
 
 render :: GameState -> Course -> [(Char, GameColors)]
 render state course = renderInto state course (courseWidth course) (courseHeight course)
 
 renderInto :: GameState -> Course -> Integer -> Integer -> [(Char, GameColors)]
-renderInto state course width height =
-
+renderInto state course renderWidth renderHeight =
                       intercalate [('\n', Dust)] rows
                       where rows :: [[(Char, GameColors)]]
-                            rows = nestedMap (renderManySquares state course) cells--[renderRow y state course | y <- [maxY course, maxY course - 1 .. minY course]]
+                            rows = nestedMap (renderManySquares state course) cells
                             cells :: [[[(Integer, Integer)]]]
                             cells = nestedMap projectionForCell smallWorldCells
-                            smallWorldCells = [zip [0..(width - 1)] (repeat y) | y <- [height, height - 1 .. 0]]
+                            smallWorldCells = [zip [0..(renderWidth - 1)] (repeat y) | y <- [renderHeight, renderHeight - 1 .. 0]]
                             projectionForCell (x, y) = [(projectedX, projectedY) | projectedX <- (getXs x), projectedY <- (getYs y)]
-                            xRatio = ceiling $ ((courseWidth course) / (fromIntegral width))
-                            yRatio = ceiling $ ((courseHeight course) / (fromIntegral height))
-                            getXs x = map (+ (minX course)) [(xRatio * x) .. (xRatio * x) + (xRatio - 1)]
-                            getYs y = map (+ (minY course)) [(yRatio * y) .. (yRatio * y) + (yRatio - 1)]
+                            xScale = max 1 $ (fromIntegral (courseWidth course)) / (fromIntegral renderWidth)
+                            yScale =  max 1 $ (fromIntegral (courseHeight course)) / (fromIntegral renderHeight)
+                            blowup = (ceiling $ max xScale yScale)
+                            getXs x = map (+ (minX course)) [(blowup * x) .. (blowup * x) + (blowup - 1)]
+                            getYs y = map (+ (minY course)) [(blowup * y) .. (blowup * y) + (blowup - 1)]

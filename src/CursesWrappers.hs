@@ -10,24 +10,34 @@ import GameTypes
 import Configs
 import Car
 import Scoring
+import qualified Rendering as R
+import Data.List.Split
 
 data UserSelectCommand = SelectToLeft | SelectToRight | FinalizeSelection
 
-thumbnailWidth = 30
-thumbnailHeight = 20
+floorDivide :: Integer -> Integer -> Integer
+floorDivide top bottom = floor $ (fromIntegral top) / (fromIntegral bottom)
+
 thumbnailBuffer = 3
-thumbnailOuterSize = thumbnailWidth + thumbnailBuffer
+
+thumbnailDimensions = do
+  (rows, cols) <- screenSize
+  let width = floorDivide cols $ fromIntegral (length configs)
+      height = floorDivide rows 2
+      outerSize = width + thumbnailBuffer
+  return (width, height, outerSize)
+
 arrowString=
   "/\\\n\
-  \||\n\
-  \||\n\
   \||\n\
   \||\n"
 
 drawArrow canvas courseIndex startHeight = do
   cid <- textColor
+  (width, height, outerWidth) <- thumbnailDimensions
+  let spaceBetweenArrowAndThumbnail = 2
   updateWindow canvas $ do
-    moveWindow (thumbnailHeight + 2 + startHeight) (courseIndex * thumbnailOuterSize)
+    moveWindow (height + spaceBetweenArrowAndThumbnail + startHeight) (courseIndex * outerWidth)
     moveCursor 0 0
     setColor cid
     drawString $ arrowString
@@ -44,22 +54,26 @@ makeCID Finish = newColorID ColorBlue ColorBlue 8
 textColor = newColorID ColorBlack ColorWhite 9
 
 getCourseSelection startHeight = do
-  courseSelectWindow <- newWindow thumbnailHeight thumbnailWidth 0 0 -- this could get pushed down into getCourseSelection
-  answer <- go 0 courseSelectWindow
-  closeWindow courseSelectWindow
+  arrowWindow <- newWindow (arrowHeight + 1) (arrowWidth + 1) 0 0 -- not sure why we need this (+1) here...
+  answer <- go 0 arrowWindow
+  closeWindow arrowWindow
   return answer
-    where go courseIndex courseSelectWindow = do
-                 drawArrow courseSelectWindow courseIndex startHeight
-                 render
+    where go courseIndex arrowWindow = do
+                 updateWindow arrowWindow clear
+                 w <- defaultWindow
+                 updateWindow w $ do
+                   moveCursor 0 0
+                   drawString "Choose a course!"
+                 drawArrow arrowWindow courseIndex startHeight
                  drawThumbnails startHeight
                  render
-                 drawArrow courseSelectWindow courseIndex startHeight
-                 render
-                 courseAction <- awaitCourseSelectCommand courseSelectWindow
+                 courseAction <- awaitCourseSelectCommand arrowWindow
                  case courseAction of
-                   SelectToLeft -> go (mod (courseIndex + 1) (fromIntegral $ length configs)) courseSelectWindow
-                   SelectToRight -> go (mod (courseIndex - 1) (fromIntegral $ length configs)) courseSelectWindow
+                   SelectToLeft -> go (mod (courseIndex + 1) (fromIntegral $ length configs)) arrowWindow
+                   SelectToRight -> go (mod (courseIndex - 1) (fromIntegral $ length configs)) arrowWindow
                    FinalizeSelection-> return (mod courseIndex (fromIntegral (length configs)))
+          arrowWidth = fromIntegral $ length $ head $ splitOn "\n" arrowString
+          arrowHeight = fromIntegral $ length $ splitOn "\n" arrowString
 
 awaitCourseSelectCommand w = untilJust getInput
   where inputToCommand (Just (EventSpecialKey KeyEnter)) = Just FinalizeSelection
@@ -75,7 +89,7 @@ drawCourse course state w = do
   (rows, cols) <- screenSize
   updateWindow w $ do
     moveCursor 0 0
-  condenseAndDraw (R.renderInto state course (min (cols - 3) 100) (min (rows - 3) 40)) w -- try to cram the rendering into the size of your screen
+  condenseAndDraw (R.renderInto state course (min (cols - 3) ((R.courseWidth course))) (min (rows - 3) (R.courseHeight course))) w -- try to cram the rendering into the size of your screen
   render
 
 gameOverMessage w course endState = do
@@ -83,7 +97,6 @@ gameOverMessage w course endState = do
   updateWindow sad $ do
       moveCursor 0 0
       drawString $ "GAME OVER\n"
-  --endState <- get
   let humanFinished = (humanWon course endState)
       aiFinished = (aiWon course endState)
       tie = humanFinished && aiFinished
@@ -110,8 +123,13 @@ condenseAndDraw colorfulString w = do
   forM_ clumped (\s -> drawColorfulString w (map fst s) (snd $ head s))
 
 drawThumbnails startHeight = forM (zip [0..] configs) drawThumbnail
-  where drawThumbnail (courseIndex, config) = do window <- newWindow 50 50 startHeight (courseIndex * thumbnailOuterSize)
-                                                 condenseAndDraw  (R.renderInto (startStateFromConfig config) (getCourse config) thumbnailWidth thumbnailHeight) window
+  where drawThumbnail (courseIndex, config) = do (width, height, outerSize) <- thumbnailDimensions
+                                                 window <- newWindow
+                                                          (height + 1)
+                                                          (width + 1)
+                                                          startHeight
+                                                          (courseIndex * outerSize)
+                                                 condenseAndDraw  (R.renderInto (startStateFromConfig config) (getCourse config) width height) window
                                                  closeWindow window
 
 

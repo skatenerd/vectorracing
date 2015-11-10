@@ -21,8 +21,6 @@ data Readme = Readme { aiDifficulty :: Integer, course :: Course}
 top = do
   setEcho False
   w <- defaultWindow
-  updateWindow w $ do
-    drawString "Choose a course!"
   render
   let startHeight = 3
   configIndex <- getCourseSelection startHeight
@@ -35,10 +33,11 @@ top = do
       moveCursor (rows - 1) 0
       drawString $ "Enter Move:"
   render
-  let dunk = ((untilM (gameLoop w) (over course)) >> (showEndState w) >> farewell w)
-      biz = (runStateT dunk startState)
-      foo = (runReaderT biz theconfig)
-  foo
+  let gameBody = ((untilM (gameLoop w) (over course)) >> (showEndState w) >> farewell w)
+      runnable = (runReaderT
+                   (runStateT gameBody startState)
+                   theconfig)
+  runnable
 
 farewell w = do
   endState <- get
