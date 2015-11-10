@@ -75,7 +75,7 @@ drawCourse course state w = do
   (rows, cols) <- screenSize
   updateWindow w $ do
     moveCursor 0 0
-  condenseAndDraw (R.renderInto state course (min (cols - 3) 60) (min (rows - 3) 40)) w -- try to cram the rendering into the size of your screen
+  condenseAndDraw (R.renderInto state course (min (cols - 3) 100) (min (rows - 3) 40)) w -- try to cram the rendering into the size of your screen
   render
 
 gameOverMessage w course endState = do
