@@ -7,10 +7,7 @@ import Course
 import Data.Function
 import Data.List
 import Data.Maybe
-
-maybeOr a b = case a of
-              Nothing -> b
-              Just _ -> a
+import Control.Monad
 
 areSamePoint (x,y) p = (coerceMakePoint x y) == p
 
@@ -55,19 +52,19 @@ placeFinish x y gameState course = if closeToFinish
 
 renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswer
   where possibleAnswer :: Maybe (Char, GameColors)
-        possibleAnswer = foldl maybeOr Nothing tries
+        possibleAnswer = msum tries
         tries :: [Maybe (Char, GameColors)]
         tries = map tryForSquare squares
         tryForSquare :: (Integer, Integer) -> Maybe (Char, GameColors)
         tryForSquare (x, y) = maybeRenderSquare gameState course (x,y)
 
-maybeRenderSquare gameState course (x, y) = foldl maybeOr Nothing [placeCar x y gameState course,
-                                                                   placeAI x y gameState course,
-                                                                   placeWhoosh x y gameState course,
-                                                                   placeWall x y gameState course,
-                                                                   placeFinish x y gameState course,
-                                                                   placeRoad x y gameState course,
-                                                                   placeEarth x y gameState course]
+maybeRenderSquare gameState course (x, y) = msum [placeCar x y gameState course,
+                                                  placeAI x y gameState course,
+                                                  placeWhoosh x y gameState course,
+                                                  placeWall x y gameState course,
+                                                  placeFinish x y gameState course,
+                                                  placeRoad x y gameState course,
+                                                  placeEarth x y gameState course]
 
 -- https://gist.github.com/skatenerd/767e2042f388bde63779
 nestedMap = map . map
