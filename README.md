@@ -5,7 +5,7 @@ Implements this game:
 http://en.wikipedia.org/wiki/Racetrack_(game)
 
 Demo:
-https://asciinema.org/a/epd6ombmfvc0tvjv3v6nb114e
+https://asciinema.org/a/7p2vhtzic4sdpa3pdkysbxq69
 
 TODO:
 
