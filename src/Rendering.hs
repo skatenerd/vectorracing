@@ -57,22 +57,24 @@ placeFinish x y gameState course = if closeToFinish
 renderManySquares gameState course squares = fromMaybe ('D', Dust) bestTry
   where tries :: [Maybe (Char, GameColors)]
         tries = map tryForSquare squares
-        bestTry = argmaxBy scoreTile id tries
-        scoreTile Nothing _ = LT
-        scoreTile _ Nothing = GT
-        scoreTile (Just (_, a)) (Just (_, b)) = compare a b
+        bestTry = bestTile tries
         tryForSquare :: (Integer, Integer) -> Maybe (Char, GameColors)
         tryForSquare (x, y) = maybeRenderSquare gameState course (x,y)
 
+bestTile tiles = argmaxBy scoreTile id tiles
+  where scoreTile Nothing _ = LT
+        scoreTile _ Nothing = GT
+        scoreTile (Just (_, a)) (Just (_, b)) = compare a b
+
 -- this list is *implcitly* consistent with the "ordering" notion on the GameColors type
 -- This is bad! make it not possible to get out of sync!
-maybeRenderSquare gameState course (x, y) = msum [placeCar x y gameState course,
-                                                  placeAI x y gameState course,
-                                                  placeWhoosh x y gameState course,
-                                                  placeWall x y gameState course,
-                                                  placeFinish x y gameState course,
-                                                  placeRoad x y gameState course,
-                                                  placeEarth x y gameState course]
+maybeRenderSquare gameState course (x, y) = bestTile [placeCar x y gameState course,
+                                                      placeAI x y gameState course,
+                                                      placeWhoosh x y gameState course,
+                                                      placeWall x y gameState course,
+                                                      placeFinish x y gameState course,
+                                                      placeRoad x y gameState course,
+                                                      placeEarth x y gameState course]
 
 -- https://gist.github.com/skatenerd/767e2042f388bde63779
 nestedMap = map . map
