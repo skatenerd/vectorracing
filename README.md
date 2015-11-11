@@ -9,7 +9,6 @@ https://asciinema.org/a/epd6ombmfvc0tvjv3v6nb114e
 
 TODO:
 
-* Shrunken-rendering is buggy - the car disappears sometimes, because the order matters in the "render many squares" nonsense inside of rendering.  Figure out an approach where order doesnt matter
 * UI to Select AI difficulty (and number of players?)
 * Clean up AI module.  Each tree node doesn't need an independent notion of history (CarState already has this)
 * Parametrize Point to take any numeric type, instead of only Floats...
