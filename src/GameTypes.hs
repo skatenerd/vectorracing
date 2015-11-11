@@ -1,9 +1,10 @@
+
 module GameTypes where
 import Data.RTree (RTree)
 
 import Geometry
 
-data GameColors = Dust | Car | Earth | Wall | Road | Opponent | Finish deriving (Show, Eq)
+data GameColors = Earth | Road | Finish | Wall | Dust | Opponent | Car deriving (Show, Eq, Ord)
 
 data CarState = CarState { positionHistory :: [Point] } deriving (Show)
 

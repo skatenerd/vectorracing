@@ -6,6 +6,7 @@ import GameTypes
 import Course
 import Data.Function
 import Data.List
+import Data.List.Extras
 import Data.Maybe
 import Control.Monad
 import qualified Data.RTree as RT
@@ -53,14 +54,18 @@ placeFinish x y gameState course = if closeToFinish
                                            closeToFinish = distanceToSegment thePoint finishSegment < 0.5
                                            finishSegment = (uncurry Segment) (last (getLeftrightPairs course))
 
-renderManySquares gameState course squares = fromMaybe ('D', Dust) possibleAnswer
-  where possibleAnswer :: Maybe (Char, GameColors)
-        possibleAnswer = msum tries
-        tries :: [Maybe (Char, GameColors)]
+renderManySquares gameState course squares = fromMaybe ('D', Dust) bestTry
+  where tries :: [Maybe (Char, GameColors)]
         tries = map tryForSquare squares
+        bestTry = argmaxBy scoreTile id tries
+        scoreTile Nothing _ = LT
+        scoreTile _ Nothing = GT
+        scoreTile (Just (_, a)) (Just (_, b)) = compare a b
         tryForSquare :: (Integer, Integer) -> Maybe (Char, GameColors)
         tryForSquare (x, y) = maybeRenderSquare gameState course (x,y)
 
+-- this list is *implcitly* consistent with the "ordering" notion on the GameColors type
+-- This is bad! make it not possible to get out of sync!
 maybeRenderSquare gameState course (x, y) = msum [placeCar x y gameState course,
                                                   placeAI x y gameState course,
                                                   placeWhoosh x y gameState course,
